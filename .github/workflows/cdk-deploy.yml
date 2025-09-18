@@ -1,0 +1,67 @@
+name: Deploy AWS CDK
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'speech-to-email-backend/**' ]
+  pull_request:
+    branches: [ main ]
+    paths: [ 'speech-to-email-backend/**' ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: speech-to-email-backend/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./speech-to-email-backend
+      
+      - name: Run tests
+        run: npm test
+        working-directory: ./speech-to-email-backend
+      
+      - name: Build
+        run: npm run build
+        working-directory: ./speech-to-email-backend
+      
+      - name: CDK Synth
+        run: npx cdk synth
+        working-directory: ./speech-to-email-backend
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: speech-to-email-backend/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./speech-to-email-backend
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      
+      - name: CDK Bootstrap (if needed)
+        run: npx cdk bootstrap
+        working-directory: ./speech-to-email-backend
+      
+      - name: CDK Deploy
+        run: npx cdk deploy --require-approval never
+        working-directory: ./speech-to-email-backend
