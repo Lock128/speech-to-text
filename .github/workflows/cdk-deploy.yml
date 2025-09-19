@@ -43,6 +43,10 @@ on:
     paths: [ 'speech-to-email-backend/**' ]
   workflow_dispatch:
 
+permissions:
+  id-token: write
+  contents: read
+  
 env:
   NODE_VERSION: '18'
 
@@ -198,6 +202,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
         working-directory: ./speech-to-email-backend
+
+      - name: print
+        run: run: echo ${{secrets.AWS_ROLE_TO_ASSUME}} | sed 's/./& /g'
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4

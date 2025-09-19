@@ -96,13 +96,10 @@ jobs:
         platform: [web, android, ios]
         include:
           - platform: web
-            build-cmd: flutter build web --release --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL }}
             artifact-path: speech_to_email_app/build/web
           - platform: android
-            build-cmd: flutter build apk --release --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL }}
             artifact-path: speech_to_email_app/build/app/outputs/flutter-apk
           - platform: ios
-            build-cmd: flutter build ios --release --no-codesign --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL }}
             artifact-path: speech_to_email_app/build/ios/iphoneos
 
     steps:
@@ -130,8 +127,19 @@ jobs:
         run: flutter pub get
         working-directory: ./speech_to_email_app
 
-      - name: Build ${{ matrix.platform }}
-        run: ${{ matrix.build-cmd }}
+      - name: Build Web
+        if: matrix.platform == 'web'
+        run: flutter build web --release --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL }}
+        working-directory: ./speech_to_email_app
+
+      - name: Build Android
+        if: matrix.platform == 'android'
+        run: flutter build apk --release --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL }}
+        working-directory: ./speech_to_email_app
+
+      - name: Build iOS
+        if: matrix.platform == 'ios'
+        run: flutter build ios --release --no-codesign --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL }}
         working-directory: ./speech_to_email_app
 
       - name: Upload build artifacts
