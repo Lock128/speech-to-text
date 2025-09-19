@@ -1,8 +1,10 @@
-# Welcome to your CDK TypeScript project
+# Speech to text backend
 
-This is a blank project for CDK development with TypeScript.
+This is a  project for CDK development with TypeScript.
 
 The `cdk.json` file tells the CDK Toolkit how to execute your app.
+
+This is deployed using Github actions
 
 ## Useful commands
 
