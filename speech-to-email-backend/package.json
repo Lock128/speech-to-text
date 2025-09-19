@@ -22,7 +22,11 @@
     "typescript": "~5.6.3"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.891.0",
+    "@aws-sdk/client-lambda": "^3.891.0",
     "@aws-sdk/client-s3": "^3.891.0",
+    "@aws-sdk/client-ses": "^3.891.0",
+    "@aws-sdk/client-transcribe": "^3.891.0",
     "@aws-sdk/s3-request-presigner": "^3.891.0",
     "aws-cdk-lib": "2.214.0",
     "constructs": "^10.0.0",

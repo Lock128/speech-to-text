@@ -11,6 +11,8 @@ import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+import * as sns from 'aws-cdk-lib/aws-sns';
+import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import { Construct } from 'constructs';
 
 export class SpeechToEmailStack extends cdk.Stack {
@@ -299,10 +301,60 @@ export class SpeechToEmailStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    // SES configuration (basic setup - email verification needed manually)
-    new ses.CfnConfigurationSet(this, 'SESConfigurationSet', {
+    // SES configuration
+    const configurationSet = new ses.CfnConfigurationSet(this, 'SESConfigurationSet', {
       name: 'speech-to-email-config-set',
     });
+
+    // SES Configuration Set Event Destination for bounce/complaint handling
+    new ses.CfnConfigurationSetEventDestination(this, 'SESEventDestination', {
+      configurationSetName: configurationSet.name!,
+      eventDestination: {
+        name: 'cloudwatch-event-destination',
+        enabled: true,
+        matchingEventTypes: ['bounce', 'complaint', 'reject'],
+        cloudWatchDestination: {
+          dimensionConfigurations: [
+            {
+              dimensionName: 'MessageTag',
+              dimensionValueSource: 'messageTag',
+              defaultDimensionValue: 'speech-to-email',
+            },
+          ],
+        },
+      },
+    });
+
+    // Create CloudWatch log group for SES events
+    new logs.LogGroup(this, 'SESLogGroup', {
+      logGroupName: '/aws/ses/speech-to-email',
+      retention: logs.RetentionDays.ONE_MONTH,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    // SNS topic for SES bounce and complaint notifications
+    const sesNotificationTopic = new sns.Topic(this, 'SESNotificationTopic', {
+      topicName: 'speech-to-email-ses-notifications',
+      displayName: 'SES Bounce and Complaint Notifications',
+    });
+
+    // Lambda function to handle SES notifications
+    const sesNotificationHandler = new lambda.Function(this, 'SESNotificationHandler', {
+      functionName: 'speech-to-email-ses-notification-handler',
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset('lambda/ses-notification-handler'),
+      role: lambdaExecutionRole,
+      timeout: cdk.Duration.seconds(30),
+      environment: {
+        DYNAMODB_TABLE_NAME: speechProcessingTable.tableName,
+      },
+    });
+
+    // Subscribe Lambda to SNS topic
+    sesNotificationTopic.addSubscription(
+      new subscriptions.LambdaSubscription(sesNotificationHandler)
+    );
 
     // Output important values
     new cdk.CfnOutput(this, 'AudioBucketName', {
@@ -358,6 +410,11 @@ export class SpeechToEmailStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'WebsiteUrl', {
       value: `https://${distribution.distributionDomainName}`,
       description: 'Website URL',
+    });
+
+    new cdk.CfnOutput(this, 'SESNotificationTopicArn', {
+      value: sesNotificationTopic.topicArn,
+      description: 'SNS Topic ARN for SES notifications',
     });
   }
 }

@@ -28,58 +28,58 @@
     - Set up custom domain and SSL certificate (optional)
     - _Requirements: 5.4, 6.2_
 
-- [ ] 3. Implement core Lambda functions
-  - [ ] 3.1 Create Upload Handler Lambda function
+- [x] 3. Implement core Lambda functions
+  - [x] 3.1 Create Upload Handler Lambda function
     - Write Lambda function to handle S3 upload events
     - Implement DynamoDB record creation for tracking
     - Add error handling and logging
     - Create unit tests for upload handler logic
     - _Requirements: 2.6, 6.2, 8.4_
 
-  - [ ] 3.2 Implement Transcription Handler Lambda function
+  - [x] 3.2 Implement Transcription Handler Lambda function
     - Write Lambda function to initiate Amazon Transcribe jobs
     - Implement transcription job status monitoring
     - Add DynamoDB status updates for transcription progress
     - Create unit tests for transcription handler
     - _Requirements: 3.1, 3.2, 3.4_
 
-  - [ ] 3.3 Create Email Handler Lambda function
+  - [x] 3.3 Create Email Handler Lambda function
     - Write Lambda function for SES email delivery
     - Implement email formatting with transcribed text and metadata
     - Add retry logic for failed email deliveries
     - Create unit tests for email handler functionality
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.6_
 
-- [ ] 4. Configure AWS services integration
-  - [ ] 4.1 Set up Amazon Transcribe service configuration
+- [x] 4. Configure AWS services integration
+  - [x] 4.1 Set up Amazon Transcribe service configuration
     - Configure Transcribe service settings and supported formats
     - Implement EventBridge rules for transcription completion events
     - Add error handling for transcription failures
     - _Requirements: 3.1, 3.3, 3.5_
 
-  - [ ] 4.2 Configure Amazon SES for email delivery
+  - [x] 4.2 Configure Amazon SES for email delivery
     - Set up SES configuration for sending emails
     - Verify sender email address (johannes.koch@gmail.com as recipient)
     - Configure bounce and complaint handling
     - Implement email templates and formatting
     - _Requirements: 4.1, 4.2, 4.3, 4.5_
 
-- [ ] 5. Implement Flutter app core functionality
-  - [ ] 5.1 Create Flutter project structure and dependencies
+- [x] 5. Implement Flutter app core functionality
+  - [x] 5.1 Create Flutter project structure and dependencies
     - Set up Flutter project with required packages (audio recording, HTTP client)
     - Configure platform-specific permissions (microphone access)
     - Implement state management architecture (Provider/Riverpod)
     - Create basic app structure with navigation
     - _Requirements: 5.1, 5.2, 5.3_
 
-  - [ ] 5.2 Implement audio recording service
+  - [x] 5.2 Implement audio recording service
     - Create audio recording service using flutter_sound or record package
     - Implement platform-specific permission handling
     - Add recording state management (start, stop, pause)
     - Create unit tests for audio recording functionality
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.6_
 
-  - [ ] 5.3 Build recording user interface
+  - [x] 5.3 Build recording user interface
     - Create recording screen with record/stop buttons
     - Implement visual feedback for recording state
     - Add recording duration display and progress indicators

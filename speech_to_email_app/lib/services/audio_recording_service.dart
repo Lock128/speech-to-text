@@ -1,4 +1,238 @@
-// Audio recording service - placeholder for task 5.2
+import 'dart:async';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:record/record.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:path_provider/path_provider.dart';
+import '../config/app_config.dart';
+
 class AudioRecordingService {
-  // Implementation will be added in task 5.2
+  final AudioRecorder _recorder = AudioRecorder();
+  Timer? _durationTimer;
+  Duration _recordingDuration = Duration.zero;
+  String? _currentRecordingPath;
+
+  // Stream controllers for real-time updates
+  final StreamController<Duration> _durationController = StreamController<Duration>.broadcast();
+  final StreamController<bool> _recordingStateController = StreamController<bool>.broadcast();
+
+  // Getters for streams
+  Stream<Duration> get durationStream => _durationController.stream;
+  Stream<bool> get recordingStateStream => _recordingStateController.stream;
+
+  // Getters
+  Duration get recordingDuration => _recordingDuration;
+  String? get currentRecordingPath => _currentRecordingPath;
+  Future<bool> get isRecording => _recorder.isRecording();
+
+  /// Check and request microphone permission
+  Future<bool> checkPermission() async {
+    try {
+      final status = await Permission.microphone.status;
+      
+      if (status.isGranted) {
+        return true;
+      }
+      
+      if (status.isDenied) {
+        final result = await Permission.microphone.request();
+        return result.isGranted;
+      }
+      
+      if (status.isPermanentlyDenied) {
+        // Open app settings for user to manually grant permission
+        await openAppSettings();
+        return false;
+      }
+      
+      return false;
+    } catch (e) {
+      debugPrint('Error checking microphone permission: $e');
+      return false;
+    }
+  }
+
+  /// Start recording audio
+  Future<bool> startRecording() async {
+    try {
+      // Check permission first
+      final hasPermission = await checkPermission();
+      if (!hasPermission) {
+        throw Exception('Microphone permission not granted');
+      }
+
+      // Check if already recording
+      if (await _recorder.isRecording()) {
+        debugPrint('Already recording');
+        return false;
+      }
+
+      // Generate file path
+      final directory = await getApplicationDocumentsDirectory();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      _currentRecordingPath = '${directory.path}/recording_$timestamp.m4a';
+
+      // Configure recording settings
+      const config = RecordConfig(
+        encoder: AudioEncoder.aacLc,
+        bitRate: 128000,
+        sampleRate: 44100,
+      );
+
+      // Start recording
+      await _recorder.start(config, path: _currentRecordingPath!);
+      
+      // Reset duration and start timer
+      _recordingDuration = Duration.zero;
+      _startDurationTimer();
+      
+      _recordingStateController.add(true);
+      debugPrint('Recording started: $_currentRecordingPath');
+      
+      return true;
+    } catch (e) {
+      debugPrint('Error starting recording: $e');
+      _recordingStateController.add(false);
+      return false;
+    }
+  }
+
+  /// Stop recording audio
+  Future<String?> stopRecording() async {
+    try {
+      if (!await _recorder.isRecording()) {
+        debugPrint('Not currently recording');
+        return null;
+      }
+
+      // Stop recording
+      final path = await _recorder.stop();
+      
+      // Stop duration timer
+      _stopDurationTimer();
+      
+      _recordingStateController.add(false);
+      debugPrint('Recording stopped: $path');
+      
+      return path;
+    } catch (e) {
+      debugPrint('Error stopping recording: $e');
+      _recordingStateController.add(false);
+      return null;
+    }
+  }
+
+  /// Pause recording (if supported)
+  Future<bool> pauseRecording() async {
+    try {
+      if (!await _recorder.isRecording()) {
+        return false;
+      }
+
+      await _recorder.pause();
+      _stopDurationTimer();
+      debugPrint('Recording paused');
+      
+      return true;
+    } catch (e) {
+      debugPrint('Error pausing recording: $e');
+      return false;
+    }
+  }
+
+  /// Resume recording (if supported)
+  Future<bool> resumeRecording() async {
+    try {
+      if (await _recorder.isRecording()) {
+        return false;
+      }
+
+      await _recorder.resume();
+      _startDurationTimer();
+      debugPrint('Recording resumed');
+      
+      return true;
+    } catch (e) {
+      debugPrint('Error resuming recording: $e');
+      return false;
+    }
+  }
+
+  /// Cancel current recording and delete file
+  Future<bool> cancelRecording() async {
+    try {
+      if (await _recorder.isRecording()) {
+        await _recorder.stop();
+      }
+      
+      _stopDurationTimer();
+      _recordingDuration = Duration.zero;
+      
+      // Delete the recording file if it exists
+      if (_currentRecordingPath != null) {
+        final file = File(_currentRecordingPath!);
+        if (await file.exists()) {
+          await file.delete();
+          debugPrint('Recording file deleted: $_currentRecordingPath');
+        }
+        _currentRecordingPath = null;
+      }
+      
+      _recordingStateController.add(false);
+      _durationController.add(Duration.zero);
+      
+      return true;
+    } catch (e) {
+      debugPrint('Error canceling recording: $e');
+      return false;
+    }
+  }
+
+  /// Get file size of the current recording
+  Future<int?> getRecordingFileSize() async {
+    if (_currentRecordingPath == null) return null;
+    
+    try {
+      final file = File(_currentRecordingPath!);
+      if (await file.exists()) {
+        return await file.length();
+      }
+    } catch (e) {
+      debugPrint('Error getting file size: $e');
+    }
+    
+    return null;
+  }
+
+  /// Check if recording duration exceeds maximum allowed
+  bool isRecordingTooLong() {
+    return _recordingDuration.inMinutes >= AppConfig.maxRecordingDurationMinutes;
+  }
+
+  /// Start the duration timer
+  void _startDurationTimer() {
+    _durationTimer = Timer.periodic(AppConfig.recordingUpdateInterval, (timer) {
+      _recordingDuration = Duration(milliseconds: _recordingDuration.inMilliseconds + 100);
+      _durationController.add(_recordingDuration);
+      
+      // Auto-stop if maximum duration reached
+      if (isRecordingTooLong()) {
+        stopRecording();
+      }
+    });
+  }
+
+  /// Stop the duration timer
+  void _stopDurationTimer() {
+    _durationTimer?.cancel();
+    _durationTimer = null;
+  }
+
+  /// Dispose resources
+  void dispose() {
+    _stopDurationTimer();
+    _durationController.close();
+    _recordingStateController.close();
+    _recorder.dispose();
+  }
 }
