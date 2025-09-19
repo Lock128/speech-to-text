@@ -166,33 +166,6 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           role-session-name: GitHubActions-CDK-Dev
 
-      - name: CDK Bootstrap (Development)
-        run: |
-          echo "Attempting CDK bootstrap..."
-          if ! npx cdk bootstrap --context environment=dev; then
-            echo "Bootstrap failed, attempting nuclear recovery..."
-            
-            # Check if CDKToolkit stack exists and its status
-            STACK_STATUS=$(aws cloudformation describe-stacks --stack-name CDKToolkit --region ${{ secrets.AWS_REGION }} --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_EXISTS")
-            echo "CDKToolkit stack status: $STACK_STATUS"
-            
-            if [ "$STACK_STATUS" != "NOT_EXISTS" ]; then
-              echo "Deleting corrupted CDKToolkit stack..."
-              aws cloudformation delete-stack --stack-name CDKToolkit --region ${{ secrets.AWS_REGION }}
-              
-              echo "Waiting for stack deletion to complete..."
-              aws cloudformation wait stack-delete-complete --stack-name CDKToolkit --region ${{ secrets.AWS_REGION }} || {
-                echo "Stack deletion failed or timed out, continuing anyway..."
-              }
-            fi
-            
-            echo "Creating fresh bootstrap..."
-            npx cdk bootstrap --context environment=dev
-          fi
-        working-directory: ./speech-to-email-backend
-        env:
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-
       - name: CDK Deploy (Development)
         run: |
           npx cdk deploy --all \
@@ -257,33 +230,6 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ secrets.AWS_REGION }}
           role-session-name: GitHubActions-CDK-Prod
-
-      - name: CDK Bootstrap (Production)
-        run: |
-          echo "Attempting CDK bootstrap..."
-          if ! npx cdk bootstrap --context environment=prod; then
-            echo "Bootstrap failed, attempting nuclear recovery..."
-            
-            # Check if CDKToolkit stack exists and its status
-            STACK_STATUS=$(aws cloudformation describe-stacks --stack-name CDKToolkit --region ${{ secrets.AWS_REGION }} --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "NOT_EXISTS")
-            echo "CDKToolkit stack status: $STACK_STATUS"
-            
-            if [ "$STACK_STATUS" != "NOT_EXISTS" ]; then
-              echo "Deleting corrupted CDKToolkit stack..."
-              aws cloudformation delete-stack --stack-name CDKToolkit --region ${{ secrets.AWS_REGION }}
-              
-              echo "Waiting for stack deletion to complete..."
-              aws cloudformation wait stack-delete-complete --stack-name CDKToolkit --region ${{ secrets.AWS_REGION }} || {
-                echo "Stack deletion failed or timed out, continuing anyway..."
-              }
-            fi
-            
-            echo "Creating fresh bootstrap..."
-            npx cdk bootstrap --context environment=prod
-          fi
-        working-directory: ./speech-to-email-backend
-        env:
-          AWS_REGION: ${{ secrets.AWS_REGION }}
 
       - name: CDK Diff (Production)
         run: npx cdk diff --all --context environment=prod
