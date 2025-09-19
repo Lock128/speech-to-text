@@ -559,12 +559,17 @@ export class SpeechToEmailStack extends cdk.Stack {
     });
 
     // CloudWatch Alarms for monitoring
-    const functions = [uploadHandler, transcriptionHandler, emailHandler, statusHandler];
+    const functionConfigs = [
+      { func: uploadHandler, name: 'UploadHandler' },
+      { func: transcriptionHandler, name: 'TranscriptionHandler' },
+      { func: emailHandler, name: 'EmailHandler' },
+      { func: statusHandler, name: 'StatusHandler' },
+    ];
     
-    functions.forEach((func, index) => {
+    functionConfigs.forEach(({ func, name }) => {
       // Error rate alarm
-      new cloudwatch.Alarm(this, `${func.functionName}ErrorAlarm`, {
-        alarmName: `${func.functionName}-error-rate`,
+      new cloudwatch.Alarm(this, `${name}ErrorAlarm`, {
+        alarmName: `speech-to-email-${name.toLowerCase()}-error-rate`,
         metric: func.metricErrors({
           period: cdk.Duration.minutes(5),
         }),
@@ -574,8 +579,8 @@ export class SpeechToEmailStack extends cdk.Stack {
       });
 
       // Duration alarm
-      new cloudwatch.Alarm(this, `${func.functionName}DurationAlarm`, {
-        alarmName: `${func.functionName}-duration`,
+      new cloudwatch.Alarm(this, `${name}DurationAlarm`, {
+        alarmName: `speech-to-email-${name.toLowerCase()}-duration`,
         metric: func.metricDuration({
           period: cdk.Duration.minutes(5),
         }),
@@ -585,8 +590,8 @@ export class SpeechToEmailStack extends cdk.Stack {
       });
 
       // Throttle alarm
-      new cloudwatch.Alarm(this, `${func.functionName}ThrottleAlarm`, {
-        alarmName: `${func.functionName}-throttles`,
+      new cloudwatch.Alarm(this, `${name}ThrottleAlarm`, {
+        alarmName: `speech-to-email-${name.toLowerCase()}-throttles`,
         metric: func.metricThrottles({
           period: cdk.Duration.minutes(5),
         }),
@@ -668,18 +673,46 @@ export class SpeechToEmailStack extends cdk.Stack {
       ],
     });
 
-    // DynamoDB metrics widget
-    const dynamoMetricsWidget = new cloudwatch.GraphWidget({
-      title: 'DynamoDB Metrics',
-      left: [
-        speechProcessingTable.metricConsumedReadCapacityUnits({ label: 'Read Capacity' }),
-        speechProcessingTable.metricConsumedWriteCapacityUnits({ label: 'Write Capacity' }),
-      ],
-      right: [
-        speechProcessingTable.metricUserErrors({ label: 'User Errors' }),
-        speechProcessingTable.metricSystemErrors({ label: 'System Errors' }),
-      ],
-    });
+    // DynamoDB metrics widget - temporarily disabled due to CDK deprecation warnings
+    // const dynamoMetricsWidget = new cloudwatch.GraphWidget({
+    //   title: 'DynamoDB Metrics',
+    //   left: [
+    //     new cloudwatch.Metric({
+    //       namespace: 'AWS/DynamoDB',
+    //       metricName: 'ConsumedReadCapacityUnits',
+    //       dimensionsMap: {
+    //         TableName: 'SpeechProcessingRecords',
+    //       },
+    //       label: 'Read Capacity',
+    //     }),
+    //     new cloudwatch.Metric({
+    //       namespace: 'AWS/DynamoDB',
+    //       metricName: 'ConsumedWriteCapacityUnits',
+    //       dimensionsMap: {
+    //         TableName: 'SpeechProcessingRecords',
+    //       },
+    //       label: 'Write Capacity',
+    //     }),
+    //   ],
+    //   right: [
+    //     new cloudwatch.Metric({
+    //       namespace: 'AWS/DynamoDB',
+    //       metricName: 'UserErrors',
+    //       dimensionsMap: {
+    //         TableName: 'SpeechProcessingRecords',
+    //       },
+    //       label: 'User Errors',
+    //     }),
+    //     new cloudwatch.Metric({
+    //       namespace: 'AWS/DynamoDB',
+    //       metricName: 'ThrottledRequests',
+    //       dimensionsMap: {
+    //         TableName: 'SpeechProcessingRecords',
+    //       },
+    //       label: 'Throttled Requests',
+    //     }),
+    //   ],
+    // });
 
     // S3 metrics widget
     const s3MetricsWidget = new cloudwatch.GraphWidget({
@@ -735,7 +768,7 @@ export class SpeechToEmailStack extends cdk.Stack {
       lambdaMetricsWidget,
       lambdaDurationWidget,
       apiMetricsWidget,
-      dynamoMetricsWidget,
+      // dynamoMetricsWidget, // temporarily disabled due to CDK deprecation warnings
       s3MetricsWidget,
       businessMetricsWidget
     );

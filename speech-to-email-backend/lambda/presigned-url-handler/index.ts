@@ -3,7 +3,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { InputValidator } from '../utils/validation';
 import { createLogger } from '../utils/logger';
-const { v4: uuidv4 } = require('uuid');
+import { v4 as uuidv4 } from 'uuid';
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION });
 
@@ -35,17 +35,24 @@ export const handler = async (
     headers: event.headers,
   });
 
+  // Security headers used for all responses
+  const securityHeaders = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*', // In production, restrict to specific domains
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block',
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  };
+
   try {
     // Parse request body
     if (!event.body) {
       return {
         statusCode: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Content-Type',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        },
+        headers: securityHeaders,
         body: JSON.stringify({ error: 'Request body is required' }),
       };
     }
@@ -62,12 +69,7 @@ export const handler = async (
       
       return {
         statusCode: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Content-Type',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        },
+        headers: securityHeaders,
         body: JSON.stringify({ 
           error: 'Validation failed',
           details: validation.errors 
@@ -79,18 +81,6 @@ export const handler = async (
       fileName: InputValidator.sanitizeString(requestBody.fileName),
       fileSize: requestBody.fileSize,
       contentType: requestBody.contentType.toLowerCase(),
-    };
-
-    // Additional security headers
-    const securityHeaders = {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*', // In production, restrict to specific domains
-      'Access-Control-Allow-Headers': 'Content-Type',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
-      'X-XSS-Protection': '1; mode=block',
-      'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
     };
 
     // Generate unique record ID and file key
@@ -157,12 +147,7 @@ export const handler = async (
     
     return {
       statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      },
+      headers: securityHeaders,
       body: JSON.stringify({ error: 'Internal server error' }),
     };
   }

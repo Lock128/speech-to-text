@@ -43,6 +43,7 @@ describe('Presigned URL Handler', () => {
         apiKey: null,
         apiKeyId: null,
         caller: null,
+        clientCert: null,
         cognitoAuthenticationProvider: null,
         cognitoAuthenticationType: null,
         cognitoIdentityId: null,
@@ -176,6 +177,10 @@ describe('Presigned URL Handler', () => {
         fileSize: 1024,
         contentType: 'audio/mpeg',
       });
+
+      // Mock successful S3 operations
+      const mockGetSignedUrl = require('@aws-sdk/s3-request-presigner').getSignedUrl;
+      mockGetSignedUrl.mockResolvedValue('https://test-bucket.s3.amazonaws.com/test-key');
 
       const result = await handler(event, mockContext);
 
