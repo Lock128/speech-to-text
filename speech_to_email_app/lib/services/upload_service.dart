@@ -52,14 +52,7 @@ class UploadService {
       }
     } catch (e) {
       debugPrint('Error getting presigned URL: $e');
-      
-      // Fallback to demo mode if network fails
-      debugPrint('Network failed, falling back to demo mode');
-      return DemoService.getDemoPresignedUrl(
-        fileName: fileName,
-        fileSize: fileSize,
-        contentType: contentType,
-      );
+      throw Exception('Failed to get presigned URL: $e');
     }
   }
 
