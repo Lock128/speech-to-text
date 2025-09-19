@@ -360,7 +360,7 @@ export class SpeechToEmailStack extends cdk.Stack {
     const statusRecordResource = statusResource.addResource('{recordId}');
     statusRecordResource.addMethod('GET', statusIntegration);
 
-    // CloudFront distribution for Flutter web app
+    // CloudFront distribution for Flutter web app (without API Gateway integration to avoid circular dependency)
     const distribution = new cloudfront.Distribution(this, 'WebDistribution', {
       defaultBehavior: {
         origin: new origins.S3StaticWebsiteOrigin(webHostingBucket),
@@ -369,16 +369,6 @@ export class SpeechToEmailStack extends cdk.Stack {
         cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD,
         compress: true,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
-      },
-      additionalBehaviors: {
-        '/api/*': {
-          origin: new origins.RestApiOrigin(api),
-          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-          allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
-          cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD,
-          cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
-          originRequestPolicy: cloudfront.OriginRequestPolicy.CORS_S3_ORIGIN,
-        },
       },
       defaultRootObject: 'index.html',
       errorResponses: [
@@ -530,7 +520,7 @@ export class SpeechToEmailStack extends cdk.Stack {
 
     new cdk.CfnOutput(this, 'ApiGatewayUrl', {
       value: api.url,
-      description: 'URL of the API Gateway',
+      description: 'Direct URL of the API Gateway (use this for API calls)',
     });
 
     new cdk.CfnOutput(this, 'CloudFrontDistributionId', {
@@ -545,8 +535,11 @@ export class SpeechToEmailStack extends cdk.Stack {
 
     new cdk.CfnOutput(this, 'WebsiteUrl', {
       value: `https://${distribution.distributionDomainName}`,
-      description: 'Website URL',
+      description: 'Website URL (Flutter app served via CloudFront)',
     });
+
+    // Note: API calls should be made directly to the API Gateway URL, not through CloudFront
+    // This avoids circular dependency issues between CloudFront and API Gateway
 
     new cdk.CfnOutput(this, 'SESNotificationTopicArn', {
       value: sesNotificationTopic.topicArn,
