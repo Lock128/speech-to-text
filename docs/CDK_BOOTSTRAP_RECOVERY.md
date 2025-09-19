@@ -11,23 +11,23 @@ This means the CDK bootstrap is in an inconsistent state.
 
 ## Quick Fix Commands
 
-### Option 1: Force Re-bootstrap (Recommended)
+### Option 1: Nuclear Option (Most Reliable)
 ```bash
-cd speech-to-email-backend
-npx cdk bootstrap --force
-```
-
-### Option 2: Delete and Recreate Bootstrap Stack
-```bash
-# 1. Delete the failed CDKToolkit stack
+# 1. Delete the failed CDKToolkit stack completely
 aws cloudformation delete-stack --stack-name CDKToolkit --region YOUR_REGION
 
-# 2. Wait for deletion to complete
+# 2. Wait for deletion to complete (this may take 5-10 minutes)
 aws cloudformation wait stack-delete-complete --stack-name CDKToolkit --region YOUR_REGION
 
 # 3. Bootstrap fresh
 cd speech-to-email-backend
 npx cdk bootstrap
+```
+
+### Option 2: Force Re-bootstrap (Sometimes Works)
+```bash
+cd speech-to-email-backend
+npx cdk bootstrap --force
 ```
 
 ### Option 3: Manual ECR Repository Creation

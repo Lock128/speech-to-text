@@ -30,7 +30,7 @@
     "@aws-sdk/client-ses": "^3.891.0",
     "@aws-sdk/client-transcribe": "^3.891.0",
     "@aws-sdk/s3-request-presigner": "^3.891.0",
-    "aws-cdk-lib": "2.214.0",
+    "aws-cdk-lib": "2.215.0",
     "constructs": "^10.0.0",
     "uuid": "^13.0.0"
   }
