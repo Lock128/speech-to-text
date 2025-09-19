@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../providers/recording_provider.dart';
+import '../config/app_config.dart';
 
 class StatusIndicator extends StatelessWidget {
   final RecordingState state;
@@ -44,6 +45,8 @@ class StatusIndicator extends StatelessWidget {
         return _buildPulsingIcon();
       case RecordingState.stopped:
         return Icon(Icons.stop, color: _getIconColor(), size: 20);
+      case RecordingState.reviewing:
+        return Icon(Icons.play_arrow, color: _getIconColor(), size: 20);
       case RecordingState.uploading:
         return SizedBox(
           width: 20,
@@ -97,6 +100,8 @@ class StatusIndicator extends StatelessWidget {
         return Colors.red.shade50;
       case RecordingState.stopped:
         return Colors.orange.shade50;
+      case RecordingState.reviewing:
+        return Colors.teal.shade50;
       case RecordingState.uploading:
         return Colors.purple.shade50;
       case RecordingState.processing:
@@ -116,6 +121,8 @@ class StatusIndicator extends StatelessWidget {
         return Colors.red.shade200;
       case RecordingState.stopped:
         return Colors.orange.shade200;
+      case RecordingState.reviewing:
+        return Colors.teal.shade200;
       case RecordingState.uploading:
         return Colors.purple.shade200;
       case RecordingState.processing:
@@ -135,6 +142,8 @@ class StatusIndicator extends StatelessWidget {
         return Colors.red.shade700;
       case RecordingState.stopped:
         return Colors.orange.shade700;
+      case RecordingState.reviewing:
+        return Colors.teal.shade700;
       case RecordingState.uploading:
         return Colors.purple.shade700;
       case RecordingState.processing:
@@ -151,21 +160,25 @@ class StatusIndicator extends StatelessWidget {
   }
 
   String _getStatusText() {
-    switch (state) {
-      case RecordingState.idle:
-        return 'Ready to Record';
-      case RecordingState.recording:
-        return 'Recording...';
-      case RecordingState.stopped:
-        return 'Recording Stopped';
-      case RecordingState.uploading:
-        return 'Uploading...';
-      case RecordingState.processing:
-        return 'Processing Speech...';
-      case RecordingState.completed:
-        return 'Email Sent!';
-      case RecordingState.error:
-        return 'Error Occurred';
+    final baseText = switch (state) {
+      RecordingState.idle => 'Ready to Record',
+      RecordingState.recording => 'Recording...',
+      RecordingState.stopped => 'Recording Stopped',
+      RecordingState.reviewing => 'Review Recording',
+      RecordingState.uploading => 'Uploading...',
+      RecordingState.processing => 'Processing Speech...',
+      RecordingState.completed => 'Email Sent!',
+      RecordingState.error => 'Error Occurred',
+    };
+    
+    // Add demo mode indicator for processing states
+    if ((state == RecordingState.uploading || 
+         state == RecordingState.processing || 
+         state == RecordingState.completed) && 
+        AppConfig.isDemoMode) {
+      return '$baseText (Demo)';
     }
+    
+    return baseText;
   }
 }

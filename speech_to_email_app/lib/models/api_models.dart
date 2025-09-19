@@ -46,6 +46,42 @@ enum ProcessingStatus {
   failed,
 }
 
+class RecordingHistoryItem {
+  final String recordId;
+  final ProcessingStatus status;
+  final DateTime createdAt;
+  final String? transcriptionText;
+  final String? errorMessage;
+
+  RecordingHistoryItem({
+    required this.recordId,
+    required this.status,
+    required this.createdAt,
+    this.transcriptionText,
+    this.errorMessage,
+  });
+
+  factory RecordingHistoryItem.fromJson(Map<String, dynamic> json) {
+    return RecordingHistoryItem(
+      recordId: json['recordId'] as String,
+      status: StatusResponse._parseStatus(json['status'] as String),
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      transcriptionText: json['transcriptionText'] as String?,
+      errorMessage: json['errorMessage'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'recordId': recordId,
+      'status': status.toString().split('.').last,
+      'createdAt': createdAt.toIso8601String(),
+      'transcriptionText': transcriptionText,
+      'errorMessage': errorMessage,
+    };
+  }
+}
+
 class StatusResponse {
   final String recordId;
   final ProcessingStatus status;

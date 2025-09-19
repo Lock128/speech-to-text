@@ -1,62 +1,188 @@
-name: Deploy Flutter App
+name: Flutter CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
     paths: [ 'speech_to_email_app/**' ]
   pull_request:
     branches: [ main ]
     paths: [ 'speech_to_email_app/**' ]
 
+env:
+  FLUTTER_VERSION: '3.16.0'
+
 jobs:
-  test:
+  analyze:
+    name: Code Analysis
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.16.0'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
-      
-      - name: Install dependencies
+          cache: true
+
+      - name: Get dependencies
         run: flutter pub get
-        working-directory: ./speech_to_email_app
-      
-      - name: Run tests
-        run: flutter test
-        working-directory: ./speech_to_email_app
-      
-      - name: Build web
-        run: flutter build web
         working-directory: ./speech_to_email_app
 
-  deploy:
-    needs: test
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed .
+        working-directory: ./speech_to_email_app
+
+      - name: Analyze project source
+        run: flutter analyze --fatal-infos
+        working-directory: ./speech_to_email_app
+
+  test:
+    name: Unit & Widget Tests
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    needs: analyze
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.16.0'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
-      
-      - name: Install dependencies
+          cache: true
+
+      - name: Get dependencies
         run: flutter pub get
         working-directory: ./speech_to_email_app
-      
-      - name: Build web
-        run: flutter build web
+
+      - name: Run tests
+        run: flutter test --coverage
         working-directory: ./speech_to_email_app
-      
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./speech_to_email_app/coverage/lcov.info
+          flags: flutter
+          name: flutter-coverage
+
+  build:
+    name: Build Applications
+    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      matrix:
+        platform: [web, android, ios]
+        include:
+          - platform: web
+            build-cmd: flutter build web --release --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL }}
+            artifact-path: speech_to_email_app/build/web
+          - platform: android
+            build-cmd: flutter build apk --release --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL }}
+            artifact-path: speech_to_email_app/build/app/outputs/flutter-apk
+          - platform: ios
+            build-cmd: flutter build ios --release --no-codesign --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL }}
+            artifact-path: speech_to_email_app/build/ios/iphoneos
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Setup Android SDK (Android only)
+        if: matrix.platform == 'android'
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Xcode (iOS only)
+        if: matrix.platform == 'ios' && runner.os == 'macOS'
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Get dependencies
+        run: flutter pub get
+        working-directory: ./speech_to_email_app
+
+      - name: Build ${{ matrix.platform }}
+        run: ${{ matrix.build-cmd }}
+        working-directory: ./speech_to_email_app
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.platform }}-build
+          path: ${{ matrix.artifact-path }}
+          retention-days: 30
+
+  deploy-web:
+    name: Deploy Web App
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download web build
+        uses: actions/download-artifact@v3
+        with:
+          name: web-build
+          path: ./web-build
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-      
+          aws-region: ${{ secrets.AWS_REGION }}
+
       - name: Deploy to S3
         run: |
-          aws s3 sync ./speech_to_email_app/build/web s3://${{ secrets.S3_BUCKET_NAME }} --delete
+          aws s3 sync ./web-build s3://${{ secrets.S3_WEB_BUCKET_NAME }} --delete --cache-control "public, max-age=31536000, immutable" --exclude "*.html" --exclude "*.json"
+          aws s3 sync ./web-build s3://${{ secrets.S3_WEB_BUCKET_NAME }} --delete --cache-control "public, max-age=0, must-revalidate" --include "*.html" --include "*.json"
+
+      - name: Invalidate CloudFront
+        run: |
           aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+
+      - name: Verify deployment
+        run: |
+          echo "Deployment completed successfully!"
+          echo "Web app URL: https://${{ secrets.CLOUDFRONT_DOMAIN_NAME }}"
+
+  deploy-mobile:
+    name: Deploy Mobile Apps
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    steps:
+      - name: Download Android build
+        uses: actions/download-artifact@v3
+        with:
+          name: android-build
+          path: ./android-build
+
+      - name: Upload to App Distribution (Android)
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_ANDROID_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          groups: testers
+          file: ./android-build/app-release.apk
+          releaseNotes: "Automated build from commit ${{ github.sha }}"
+
+      # Note: iOS deployment would require additional setup for App Store Connect
+      - name: iOS Deployment Note
+        run: |
+          echo "iOS build completed. Manual upload to App Store Connect required."
+          echo "Build artifacts are available in the ios-build artifact."

@@ -7,6 +7,9 @@ class AppConfig {
   
   static const String presignedUrlEndpoint = '$apiBaseUrl/presigned-url';
   
+  // Demo mode for testing without backend
+  static const bool isDemoMode = String.fromEnvironment('DEMO_MODE', defaultValue: 'false') == 'true';
+  
   // Recording Configuration
   static const int maxRecordingDurationMinutes = 5;
   static const int maxFileSizeBytes = 50 * 1024 * 1024; // 50MB

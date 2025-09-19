@@ -1,6 +1,8 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { InputValidator } from '../utils/validation';
+import { createLogger } from '../utils/logger';
 const { v4: uuidv4 } = require('uuid');
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION });
@@ -21,7 +23,17 @@ export const handler = async (
   event: APIGatewayProxyEvent,
   context: Context
 ): Promise<APIGatewayProxyResult> => {
-  console.log('Presigned URL request:', JSON.stringify(event, null, 2));
+  const logger = createLogger(context.awsRequestId, {
+    functionName: context.functionName,
+    sourceIP: event.requestContext.identity.sourceIp,
+    userAgent: event.requestContext.identity.userAgent,
+  });
+
+  logger.info('Presigned URL request received', {
+    httpMethod: event.httpMethod,
+    path: event.path,
+    headers: event.headers,
+  });
 
   try {
     // Parse request body
@@ -38,10 +50,16 @@ export const handler = async (
       };
     }
 
-    const request: PresignedUrlRequest = JSON.parse(event.body);
+    const requestBody = JSON.parse(event.body);
     
-    // Validate request
-    if (!request.fileName || !request.contentType) {
+    // Validate and sanitize input
+    const validation = InputValidator.validatePresignedUrlRequest(requestBody);
+    if (!validation.isValid) {
+      logger.security('Invalid presigned URL request', {
+        errors: validation.errors,
+        requestBody: requestBody,
+      });
+      
       return {
         statusCode: 400,
         headers: {
@@ -50,48 +68,30 @@ export const handler = async (
           'Access-Control-Allow-Headers': 'Content-Type',
           'Access-Control-Allow-Methods': 'POST, OPTIONS',
         },
-        body: JSON.stringify({ error: 'fileName and contentType are required' }),
+        body: JSON.stringify({ 
+          error: 'Validation failed',
+          details: validation.errors 
+        }),
       };
     }
 
-    // Validate file size (max 50MB)
-    const maxFileSize = 50 * 1024 * 1024; // 50MB
-    if (request.fileSize && request.fileSize > maxFileSize) {
-      return {
-        statusCode: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Content-Type',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        },
-        body: JSON.stringify({ error: 'File size exceeds maximum limit of 50MB' }),
-      };
-    }
+    const request: PresignedUrlRequest = {
+      fileName: InputValidator.sanitizeString(requestBody.fileName),
+      fileSize: requestBody.fileSize,
+      contentType: requestBody.contentType.toLowerCase(),
+    };
 
-    // Validate content type (audio files only)
-    const allowedContentTypes = [
-      'audio/mpeg',
-      'audio/mp3',
-      'audio/wav',
-      'audio/m4a',
-      'audio/aac',
-      'audio/ogg',
-      'audio/webm',
-    ];
-
-    if (!allowedContentTypes.includes(request.contentType.toLowerCase())) {
-      return {
-        statusCode: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Content-Type',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        },
-        body: JSON.stringify({ error: 'Invalid content type. Only audio files are allowed.' }),
-      };
-    }
+    // Additional security headers
+    const securityHeaders = {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*', // In production, restrict to specific domains
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'X-XSS-Protection': '1; mode=block',
+      'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+    };
 
     // Generate unique record ID and file key
     const recordId = uuidv4();
@@ -131,19 +131,29 @@ export const handler = async (
       expiresIn,
     };
 
+    logger.info('Presigned URL generated successfully', {
+      recordId,
+      fileName: request.fileName,
+      fileSize: request.fileSize,
+      contentType: request.contentType,
+    });
+
+    logger.metric('PresignedUrlGenerated', 1);
+    logger.audit('PRESIGNED_URL_GENERATED', recordId, {
+      fileName: request.fileName,
+      fileSize: request.fileSize,
+    });
+
     return {
       statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      },
+      headers: securityHeaders,
       body: JSON.stringify(response),
     };
 
   } catch (error) {
-    console.error('Error generating presigned URL:', error);
+    logger.error('Error generating presigned URL', error as Error);
+    
+    logger.metric('PresignedUrlError', 1);
     
     return {
       statusCode: 500,

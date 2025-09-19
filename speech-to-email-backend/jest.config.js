@@ -1,8 +1,21 @@
 module.exports = {
+  preset: 'ts-jest',
   testEnvironment: 'node',
-  roots: ['<rootDir>/test'],
+  roots: ['<rootDir>/test', '<rootDir>/lambda'],
   testMatch: ['**/*.test.ts'],
   transform: {
-    '^.+\\.tsx?$': 'ts-jest'
-  }
+    '^.+\\.tsx?$': 'ts-jest',
+  },
+  collectCoverageFrom: [
+    'lambda/**/*.ts',
+    'lib/**/*.ts',
+    '!**/*.d.ts',
+    '!**/node_modules/**',
+  ],
+  coverageDirectory: 'coverage',
+  coverageReporters: ['text', 'lcov', 'html'],
+  setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
+  moduleNameMapping: {
+    '^@/(.*)$': '<rootDir>/$1',
+  },
 };

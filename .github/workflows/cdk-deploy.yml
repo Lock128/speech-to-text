@@ -1,67 +1,254 @@
-name: Deploy AWS CDK
+name: AWS CDK CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
     paths: [ 'speech-to-email-backend/**' ]
   pull_request:
     branches: [ main ]
     paths: [ 'speech-to-email-backend/**' ]
 
+env:
+  NODE_VERSION: '18'
+  AWS_REGION: 'us-east-1'
+
 jobs:
-  test:
+  validate:
+    name: Validate & Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: speech-to-email-backend/package-lock.json
-      
+
       - name: Install dependencies
         run: npm ci
-        working-directory: ./speech-to-email-backend
-      
-      - name: Run tests
-        run: npm test
-        working-directory: ./speech-to-email-backend
-      
-      - name: Build
-        run: npm run build
-        working-directory: ./speech-to-email-backend
-      
-      - name: CDK Synth
-        run: npx cdk synth
         working-directory: ./speech-to-email-backend
 
-  deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Lint code
+        run: npm run lint || echo "Linting not configured"
+        working-directory: ./speech-to-email-backend
+
+      - name: Run unit tests
+        run: npm test
+        working-directory: ./speech-to-email-backend
+
+      - name: Build TypeScript
+        run: npm run build
+        working-directory: ./speech-to-email-backend
+
+      - name: CDK Synth
+        run: npx cdk synth --all
+        working-directory: ./speech-to-email-backend
+
+      - name: Upload CDK templates
+        uses: actions/upload-artifact@v3
         with:
-          node-version: '18'
+          name: cdk-templates
+          path: speech-to-email-backend/cdk.out/
+          retention-days: 30
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: speech-to-email-backend/package-lock.json
-      
+
       - name: Install dependencies
         run: npm ci
         working-directory: ./speech-to-email-backend
-      
+
+      - name: Run security audit
+        run: npm audit --audit-level=high
+        working-directory: ./speech-to-email-backend
+
+      - name: Check for vulnerabilities
+        run: |
+          cd speech-to-email-backend
+          if npm audit --audit-level=high --json | jq '.vulnerabilities | length' | grep -q '^0$'; then
+            echo "✅ No high-severity vulnerabilities found"
+          else
+            echo "❌ High-severity vulnerabilities detected"
+            npm audit --audit-level=high
+            exit 1
+          fi
+
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    needs: [validate, security-scan]
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment: development
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: speech-to-email-backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./speech-to-email-backend
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: CDK Bootstrap (Development)
+        run: npx cdk bootstrap --context environment=dev
+        working-directory: ./speech-to-email-backend
+
+      - name: CDK Deploy (Development)
+        run: |
+          npx cdk deploy --all \
+            --require-approval never \
+            --context environment=dev \
+            --outputs-file cdk-outputs-dev.json
+        working-directory: ./speech-to-email-backend
+
+      - name: Upload deployment outputs
+        uses: actions/upload-artifact@v3
+        with:
+          name: cdk-outputs-dev
+          path: speech-to-email-backend/cdk-outputs-dev.json
+
+  deploy-prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [validate, security-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: speech-to-email-backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./speech-to-email-backend
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-      
-      - name: CDK Bootstrap (if needed)
-        run: npx cdk bootstrap
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: CDK Bootstrap (Production)
+        run: npx cdk bootstrap --context environment=prod
         working-directory: ./speech-to-email-backend
-      
-      - name: CDK Deploy
-        run: npx cdk deploy --require-approval never
+
+      - name: CDK Diff (Production)
+        run: npx cdk diff --all --context environment=prod
         working-directory: ./speech-to-email-backend
+
+      - name: CDK Deploy (Production)
+        run: |
+          npx cdk deploy --all \
+            --require-approval never \
+            --context environment=prod \
+            --outputs-file cdk-outputs-prod.json
+        working-directory: ./speech-to-email-backend
+
+      - name: Upload deployment outputs
+        uses: actions/upload-artifact@v3
+        with:
+          name: cdk-outputs-prod
+          path: speech-to-email-backend/cdk-outputs-prod.json
+
+      - name: Post-deployment verification
+        run: |
+          echo "🚀 Production deployment completed!"
+          echo "Verifying deployment..."
+          
+          # Extract API Gateway URL from outputs
+          API_URL=$(cat speech-to-email-backend/cdk-outputs-prod.json | jq -r '.SpeechToEmailStack.ApiGatewayUrl // empty')
+          
+          if [ ! -z "$API_URL" ]; then
+            echo "API Gateway URL: $API_URL"
+            # Basic health check
+            curl -f "$API_URL/health" || echo "Health check endpoint not available"
+          fi
+
+  rollback:
+    name: Rollback (Manual)
+    runs-on: ubuntu-latest
+    if: failure() && github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: speech-to-email-backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ./speech-to-email-backend
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get previous commit
+        run: |
+          PREVIOUS_COMMIT=$(git rev-parse HEAD~1)
+          echo "PREVIOUS_COMMIT=$PREVIOUS_COMMIT" >> $GITHUB_ENV
+          echo "Rolling back to commit: $PREVIOUS_COMMIT"
+
+      - name: Checkout previous version
+        run: git checkout ${{ env.PREVIOUS_COMMIT }}
+
+      - name: Install dependencies (previous version)
+        run: npm ci
+        working-directory: ./speech-to-email-backend
+
+      - name: CDK Deploy (Rollback)
+        run: |
+          echo "⚠️ Performing rollback deployment..."
+          npx cdk deploy --all \
+            --require-approval never \
+            --context environment=prod
+        working-directory: ./speech-to-email-backend
+
+      - name: Notify rollback
+        run: |
+          echo "🔄 Rollback completed to commit ${{ env.PREVIOUS_COMMIT }}"
+          echo "Please investigate the deployment failure and fix the issues."

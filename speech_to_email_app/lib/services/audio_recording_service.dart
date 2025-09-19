@@ -67,10 +67,20 @@ class AudioRecordingService {
         return false;
       }
 
-      // Generate file path
-      final directory = await getApplicationDocumentsDirectory();
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      _currentRecordingPath = '${directory.path}/recording_$timestamp.m4a';
+      // Generate file path - handle web vs mobile differently
+      String recordingPath;
+      if (kIsWeb) {
+        // On web, we don't need a file path - the record package handles it
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        recordingPath = 'recording_$timestamp.m4a';
+        _currentRecordingPath = recordingPath;
+      } else {
+        // On mobile, use the documents directory
+        final directory = await getApplicationDocumentsDirectory();
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        recordingPath = '${directory.path}/recording_$timestamp.m4a';
+        _currentRecordingPath = recordingPath;
+      }
 
       // Configure recording settings
       const config = RecordConfig(
@@ -80,7 +90,7 @@ class AudioRecordingService {
       );
 
       // Start recording
-      await _recorder.start(config, path: _currentRecordingPath!);
+      await _recorder.start(config, path: recordingPath);
       
       // Reset duration and start timer
       _recordingDuration = Duration.zero;
@@ -168,15 +178,15 @@ class AudioRecordingService {
       _stopDurationTimer();
       _recordingDuration = Duration.zero;
       
-      // Delete the recording file if it exists
-      if (_currentRecordingPath != null) {
+      // Delete the recording file if it exists (mobile only)
+      if (_currentRecordingPath != null && !kIsWeb) {
         final file = File(_currentRecordingPath!);
         if (await file.exists()) {
           await file.delete();
           debugPrint('Recording file deleted: $_currentRecordingPath');
         }
-        _currentRecordingPath = null;
       }
+      _currentRecordingPath = null;
       
       _recordingStateController.add(false);
       _durationController.add(Duration.zero);
@@ -193,9 +203,15 @@ class AudioRecordingService {
     if (_currentRecordingPath == null) return null;
     
     try {
-      final file = File(_currentRecordingPath!);
-      if (await file.exists()) {
-        return await file.length();
+      if (kIsWeb) {
+        // On web, we can't easily get file size before upload
+        // Return null to skip size validation
+        return null;
+      } else {
+        final file = File(_currentRecordingPath!);
+        if (await file.exists()) {
+          return await file.length();
+        }
       }
     } catch (e) {
       debugPrint('Error getting file size: $e');

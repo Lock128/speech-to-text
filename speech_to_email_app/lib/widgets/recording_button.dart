@@ -6,6 +6,7 @@ class RecordingButton extends StatelessWidget {
   final VoidCallback onStartRecording;
   final VoidCallback onStopRecording;
   final VoidCallback onCancelRecording;
+  final VoidCallback onUploadRecording;
 
   const RecordingButton({
     super.key,
@@ -13,6 +14,7 @@ class RecordingButton extends StatelessWidget {
     required this.onStartRecording,
     required this.onStopRecording,
     required this.onCancelRecording,
+    required this.onUploadRecording,
   });
 
   @override
@@ -47,7 +49,7 @@ class RecordingButton extends StatelessWidget {
         
         const SizedBox(height: 24),
         
-        // Action buttons row
+        // Action buttons row (only show during recording, not during review)
         if (state == RecordingState.recording || state == RecordingState.stopped) ...[
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -61,21 +63,13 @@ class RecordingButton extends StatelessWidget {
                   onPressed: onCancelRecording,
                 ),
               
-              // Upload button (only show when stopped)
+              // Upload button (only show when stopped, not reviewing)
               if (state == RecordingState.stopped)
                 _ActionButton(
                   icon: Icons.cloud_upload,
                   label: 'Upload',
                   color: Colors.blue,
-                  onPressed: () {
-                    // This will be implemented in the upload service
-                    // For now, just show a placeholder
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Upload functionality will be implemented in the next task'),
-                      ),
-                    );
-                  },
+                  onPressed: onUploadRecording,
                 ),
             ],
           ),
@@ -101,6 +95,7 @@ class RecordingButton extends StatelessWidget {
       case RecordingState.recording:
         return onStopRecording;
       case RecordingState.stopped:
+      case RecordingState.reviewing:
         return onStartRecording; // Start new recording
       default:
         return null; // Disabled during upload/processing
@@ -111,6 +106,7 @@ class RecordingButton extends StatelessWidget {
     switch (state) {
       case RecordingState.idle:
       case RecordingState.stopped:
+      case RecordingState.reviewing:
         return Theme.of(context).colorScheme.primary;
       case RecordingState.recording:
         return Colors.red;
@@ -128,6 +124,7 @@ class RecordingButton extends StatelessWidget {
     switch (state) {
       case RecordingState.idle:
       case RecordingState.stopped:
+      case RecordingState.reviewing:
         return Icons.mic;
       case RecordingState.recording:
         return Icons.stop;
@@ -150,6 +147,8 @@ class RecordingButton extends StatelessWidget {
         return 'Recording... Tap to stop';
       case RecordingState.stopped:
         return 'Recording complete';
+      case RecordingState.reviewing:
+        return 'Review your recording';
       case RecordingState.uploading:
         return 'Uploading...';
       case RecordingState.processing:

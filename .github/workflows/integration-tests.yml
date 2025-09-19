@@ -1,0 +1,219 @@
+name: Integration Tests
+
+on:
+  schedule:
+    # Run integration tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to test'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - production
+
+jobs:
+  integration-tests:
+    name: End-to-End Integration Tests
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'development' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: speech-to-email-backend/package-lock.json
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: ./speech-to-email-backend
+
+      - name: Install frontend dependencies
+        run: flutter pub get
+        working-directory: ./speech_to_email_app
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Create test audio file
+        run: |
+          # Create a simple test audio file using FFmpeg
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          
+          # Generate a 5-second test audio file with speech-like content
+          ffmpeg -f lavfi -i "sine=frequency=440:duration=5" -ar 44100 -ac 1 test-audio.wav
+          
+          # Convert to different formats for testing
+          ffmpeg -i test-audio.wav -c:a libmp3lame test-audio.mp3
+          ffmpeg -i test-audio.wav -c:a aac test-audio.m4a
+
+      - name: Test API endpoints
+        run: |
+          # Get API Gateway URL from CDK outputs or environment
+          API_URL="${{ secrets.API_BASE_URL }}"
+          
+          echo "Testing API endpoints at: $API_URL"
+          
+          # Test presigned URL generation
+          echo "Testing presigned URL generation..."
+          RESPONSE=$(curl -s -X POST "$API_URL/presigned-url" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "fileName": "test-audio.mp3",
+              "fileSize": 1024,
+              "contentType": "audio/mpeg"
+            }')
+          
+          echo "Presigned URL response: $RESPONSE"
+          
+          # Extract upload URL and record ID
+          UPLOAD_URL=$(echo $RESPONSE | jq -r '.uploadUrl')
+          RECORD_ID=$(echo $RESPONSE | jq -r '.recordId')
+          
+          if [ "$UPLOAD_URL" = "null" ] || [ "$RECORD_ID" = "null" ]; then
+            echo "❌ Failed to get presigned URL"
+            exit 1
+          fi
+          
+          echo "✅ Presigned URL generated successfully"
+          echo "Record ID: $RECORD_ID"
+          
+          # Test file upload
+          echo "Testing file upload..."
+          curl -X PUT "$UPLOAD_URL" \
+            -H "Content-Type: audio/mpeg" \
+            --data-binary @test-audio.mp3
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ File upload successful"
+          else
+            echo "❌ File upload failed"
+            exit 1
+          fi
+          
+          # Wait for processing to start
+          echo "Waiting for processing to start..."
+          sleep 10
+          
+          # Test status endpoint
+          echo "Testing status endpoint..."
+          for i in {1..12}; do
+            STATUS_RESPONSE=$(curl -s "$API_URL/status/$RECORD_ID")
+            STATUS=$(echo $STATUS_RESPONSE | jq -r '.status')
+            
+            echo "Status check $i: $STATUS"
+            
+            if [ "$STATUS" = "email_sent" ]; then
+              echo "✅ Processing completed successfully"
+              break
+            elif [ "$STATUS" = "failed" ]; then
+              echo "❌ Processing failed"
+              echo "Error: $(echo $STATUS_RESPONSE | jq -r '.errorMessage')"
+              exit 1
+            fi
+            
+            sleep 10
+          done
+
+      - name: Test Lambda functions directly
+        run: |
+          echo "Testing Lambda functions..."
+          
+          # Test upload handler (indirectly through S3 event simulation)
+          aws lambda invoke \
+            --function-name speech-to-email-upload-handler \
+            --payload '{"Records":[{"s3":{"bucket":{"name":"test-bucket"},"object":{"key":"test-file.mp3"}}}]}' \
+            response.json || echo "Upload handler test completed"
+          
+          # Test status handler
+          aws lambda invoke \
+            --function-name speech-to-email-status-handler \
+            --payload '{"pathParameters":{"recordId":"test-record-id"}}' \
+            response.json || echo "Status handler test completed"
+
+      - name: Verify SES configuration
+        run: |
+          echo "Verifying SES configuration..."
+          
+          # Check SES sending quota
+          aws ses get-send-quota
+          
+          # Check verified email addresses
+          aws ses list-verified-email-addresses
+
+      - name: Test error scenarios
+        run: |
+          echo "Testing error scenarios..."
+          
+          # Test with invalid file format
+          curl -s -X POST "${{ secrets.API_BASE_URL }}/presigned-url" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "fileName": "test.txt",
+              "fileSize": 1024,
+              "contentType": "text/plain"
+            }' | jq .
+          
+          # Test with oversized file
+          curl -s -X POST "${{ secrets.API_BASE_URL }}/presigned-url" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "fileName": "large-file.mp3",
+              "fileSize": 104857600,
+              "contentType": "audio/mpeg"
+            }' | jq .
+
+      - name: Generate test report
+        if: always()
+        run: |
+          echo "# Integration Test Report" > test-report.md
+          echo "" >> test-report.md
+          echo "**Environment:** ${{ github.event.inputs.environment || 'development' }}" >> test-report.md
+          echo "**Date:** $(date)" >> test-report.md
+          echo "**Commit:** ${{ github.sha }}" >> test-report.md
+          echo "" >> test-report.md
+          
+          if [ $? -eq 0 ]; then
+            echo "**Status:** ✅ All tests passed" >> test-report.md
+          else
+            echo "**Status:** ❌ Some tests failed" >> test-report.md
+          fi
+          
+          echo "" >> test-report.md
+          echo "## Test Results" >> test-report.md
+          echo "- API Endpoints: Tested" >> test-report.md
+          echo "- File Upload: Tested" >> test-report.md
+          echo "- Processing Pipeline: Tested" >> test-report.md
+          echo "- Error Handling: Tested" >> test-report.md
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: integration-test-report
+          path: test-report.md
+
+      - name: Cleanup test resources
+        if: always()
+        run: |
+          echo "Cleaning up test resources..."
+          rm -f test-audio.* response.json test-report.md

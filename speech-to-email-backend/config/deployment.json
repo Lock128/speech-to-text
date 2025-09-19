@@ -1,0 +1,128 @@
+{
+  "environments": {
+    "development": {
+      "region": "us-east-1",
+      "stage": "dev",
+      "domainName": "dev-speech-to-email.example.com",
+      "certificateArn": "arn:aws:acm:us-east-1:123456789012:certificate/dev-cert-id",
+      "monitoring": {
+        "enableDetailedMetrics": true,
+        "logLevel": "DEBUG",
+        "retentionDays": 7
+      },
+      "scaling": {
+        "lambdaConcurrency": 10,
+        "apiGatewayThrottling": {
+          "rateLimit": 100,
+          "burstLimit": 200
+        }
+      },
+      "security": {
+        "enableWAF": true,
+        "corsOrigins": ["http://localhost:3000", "https://dev-app.example.com"],
+        "enableDetailedErrorMessages": true
+      }
+    },
+    "staging": {
+      "region": "us-east-1",
+      "stage": "staging",
+      "domainName": "staging-speech-to-email.example.com",
+      "certificateArn": "arn:aws:acm:us-east-1:123456789012:certificate/staging-cert-id",
+      "monitoring": {
+        "enableDetailedMetrics": true,
+        "logLevel": "INFO",
+        "retentionDays": 14
+      },
+      "scaling": {
+        "lambdaConcurrency": 50,
+        "apiGatewayThrottling": {
+          "rateLimit": 500,
+          "burstLimit": 1000
+        }
+      },
+      "security": {
+        "enableWAF": true,
+        "corsOrigins": ["https://staging-app.example.com"],
+        "enableDetailedErrorMessages": false
+      }
+    },
+    "production": {
+      "region": "us-east-1",
+      "stage": "prod",
+      "domainName": "speech-to-email.example.com",
+      "certificateArn": "arn:aws:acm:us-east-1:123456789012:certificate/prod-cert-id",
+      "monitoring": {
+        "enableDetailedMetrics": true,
+        "logLevel": "WARN",
+        "retentionDays": 30
+      },
+      "scaling": {
+        "lambdaConcurrency": 100,
+        "apiGatewayThrottling": {
+          "rateLimit": 1000,
+          "burstLimit": 2000
+        }
+      },
+      "security": {
+        "enableWAF": true,
+        "corsOrigins": ["https://app.example.com"],
+        "enableDetailedErrorMessages": false
+      },
+      "backup": {
+        "enablePointInTimeRecovery": true,
+        "backupRetentionDays": 35,
+        "enableCrossRegionBackup": true
+      }
+    }
+  },
+  "features": {
+    "audioCompression": {
+      "enabled": true,
+      "maxFileSizeMB": 50,
+      "compressionQuality": 0.8
+    },
+    "emailNotifications": {
+      "enabled": true,
+      "maxRetries": 3,
+      "retryDelaySeconds": 5
+    },
+    "transcription": {
+      "enabled": true,
+      "language": "en-US",
+      "enableSpeakerLabels": true,
+      "maxSpeakers": 2
+    },
+    "monitoring": {
+      "enableXRayTracing": true,
+      "enableCustomMetrics": true,
+      "enableAlerts": true
+    }
+  },
+  "performance": {
+    "lambdaMemoryMB": {
+      "uploadHandler": 512,
+      "transcriptionHandler": 1024,
+      "emailHandler": 256,
+      "statusHandler": 256,
+      "presignedUrlHandler": 256
+    },
+    "lambdaTimeoutSeconds": {
+      "uploadHandler": 30,
+      "transcriptionHandler": 60,
+      "emailHandler": 30,
+      "statusHandler": 10,
+      "presignedUrlHandler": 10
+    },
+    "s3": {
+      "enableTransferAcceleration": true,
+      "enableIntelligentTiering": true,
+      "lifecyclePolicyDays": 7
+    },
+    "dynamodb": {
+      "enableAutoScaling": true,
+      "minCapacity": 5,
+      "maxCapacity": 100,
+      "targetUtilization": 70
+    }
+  }
+}
