@@ -118,72 +118,54 @@ export class SpeechToEmailStack extends cdk.Stack {
       encryptionMasterKey: encryptionKey,
     });
 
-    // IAM role for Lambda functions with comprehensive permissions
-    const lambdaExecutionRole = new iam.Role(this, 'LambdaExecutionRole', {
+    // Create individual IAM roles for each Lambda function to avoid circular dependencies
+
+    // Upload Handler Role
+    const uploadHandlerRole = new iam.Role(this, 'UploadHandlerRole', {
       assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
       managedPolicies: [
         iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
       ],
-      inlinePolicies: {
-        S3Policy: new iam.PolicyDocument({
-          statements: [
-            new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
-              resources: [`${audioStorageBucket.bucketArn}/*`],
-            }),
-          ],
-        }),
-        DynamoDBPolicy: new iam.PolicyDocument({
-          statements: [
-            new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: [
-                'dynamodb:PutItem',
-                'dynamodb:GetItem',
-                'dynamodb:UpdateItem',
-                'dynamodb:Query',
-                'dynamodb:Scan',
-              ],
-              resources: [
-                speechProcessingTable.tableArn,
-                `${speechProcessingTable.tableArn}/index/*`,
-              ],
-            }),
-          ],
-        }),
-        TranscribePolicy: new iam.PolicyDocument({
-          statements: [
-            new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: [
-                'transcribe:StartTranscriptionJob',
-                'transcribe:GetTranscriptionJob',
-                'transcribe:ListTranscriptionJobs',
-              ],
-              resources: ['*'],
-            }),
-          ],
-        }),
-        SESPolicy: new iam.PolicyDocument({
-          statements: [
-            new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: ['ses:SendEmail', 'ses:SendRawEmail'],
-              resources: ['*'],
-            }),
-          ],
-        }),
-        SQSPolicy: new iam.PolicyDocument({
-          statements: [
-            new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: ['sqs:SendMessage'],
-              resources: [deadLetterQueue.queueArn],
-            }),
-          ],
-        }),
-      },
+    });
+
+    // Presigned URL Handler Role
+    const presignedUrlHandlerRole = new iam.Role(this, 'PresignedUrlHandlerRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    });
+
+    // Status Handler Role
+    const statusHandlerRole = new iam.Role(this, 'StatusHandlerRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    });
+
+    // Transcription Handler Role
+    const transcriptionHandlerRole = new iam.Role(this, 'TranscriptionHandlerRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    });
+
+    // Email Handler Role
+    const emailHandlerRole = new iam.Role(this, 'EmailHandlerRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    });
+
+    // SES Notification Handler Role
+    const sesNotificationHandlerRole = new iam.Role(this, 'SESNotificationHandlerRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
     });
 
     // Upload Handler Lambda
@@ -192,7 +174,7 @@ export class SpeechToEmailStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'index.handler',
       code: lambda.Code.fromAsset('lambda/upload-handler'),
-      role: lambdaExecutionRole,
+      role: uploadHandlerRole,
       timeout: cdk.Duration.seconds(30),
       retryAttempts: 2,
       deadLetterQueue: deadLetterQueue,
@@ -202,13 +184,17 @@ export class SpeechToEmailStack extends cdk.Stack {
       },
     });
 
+    // Grant permissions to Upload Handler
+    speechProcessingTable.grantReadWriteData(uploadHandler);
+    audioStorageBucket.grantReadWrite(uploadHandler);
+
     // Email Handler Lambda
     const emailHandler = new lambda.Function(this, 'EmailHandler', {
       functionName: 'speech-to-email-email-handler',
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'index.handler',
       code: lambda.Code.fromAsset('lambda/email-handler'),
-      role: lambdaExecutionRole,
+      role: emailHandlerRole,
       timeout: cdk.Duration.seconds(30),
       retryAttempts: 2,
       deadLetterQueue: deadLetterQueue,
@@ -219,13 +205,21 @@ export class SpeechToEmailStack extends cdk.Stack {
       },
     });
 
+    // Grant permissions to Email Handler
+    speechProcessingTable.grantReadWriteData(emailHandler);
+    emailHandlerRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['ses:SendEmail', 'ses:SendRawEmail'],
+      resources: ['*'],
+    }));
+
     // Transcription Handler Lambda
     const transcriptionHandler = new lambda.Function(this, 'TranscriptionHandler', {
       functionName: 'speech-to-email-transcription-handler',
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'index.handler',
       code: lambda.Code.fromAsset('lambda/transcription-handler'),
-      role: lambdaExecutionRole,
+      role: transcriptionHandlerRole,
       timeout: cdk.Duration.seconds(60),
       retryAttempts: 2,
       deadLetterQueue: deadLetterQueue,
@@ -236,6 +230,19 @@ export class SpeechToEmailStack extends cdk.Stack {
       },
     });
 
+    // Grant permissions to Transcription Handler
+    speechProcessingTable.grantReadWriteData(transcriptionHandler);
+    audioStorageBucket.grantRead(transcriptionHandler);
+    transcriptionHandlerRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'transcribe:StartTranscriptionJob',
+        'transcribe:GetTranscriptionJob',
+        'transcribe:ListTranscriptionJobs',
+      ],
+      resources: ['*'],
+    }));
+
     // Grant Lambda permission to invoke email handler
     emailHandler.grantInvoke(transcriptionHandler);
 
@@ -245,12 +252,15 @@ export class SpeechToEmailStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'index.handler',
       code: lambda.Code.fromAsset('lambda/presigned-url-handler'),
-      role: lambdaExecutionRole,
+      role: presignedUrlHandlerRole,
       timeout: cdk.Duration.seconds(30),
       environment: {
         AUDIO_BUCKET_NAME: audioStorageBucket.bucketName,
       },
     });
+
+    // Grant permissions to Presigned URL Handler
+    audioStorageBucket.grantPut(presignedUrlHandler);
 
     // WAF Web ACL for API Gateway protection
     const webAcl = new waf.CfnWebACL(this, 'ApiGatewayWebACL', {
@@ -342,12 +352,15 @@ export class SpeechToEmailStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'index.handler',
       code: lambda.Code.fromAsset('lambda/status-handler'),
-      role: lambdaExecutionRole,
+      role: statusHandlerRole,
       timeout: cdk.Duration.seconds(30),
       environment: {
         DYNAMODB_TABLE_NAME: speechProcessingTable.tableName,
       },
     });
+
+    // Grant permissions to Status Handler
+    speechProcessingTable.grantReadData(statusHandler);
 
     // API Gateway integration for presigned URL
     const presignedUrlIntegration = new apigateway.LambdaIntegration(presignedUrlHandler);
@@ -408,24 +421,8 @@ export class SpeechToEmailStack extends cdk.Stack {
 
     transcribeRule.addTarget(new targets.LambdaFunction(transcriptionHandler));
 
-    // CloudWatch log groups
-    new logs.LogGroup(this, 'UploadHandlerLogGroup', {
-      logGroupName: '/aws/lambda/speech-to-email-upload-handler',
-      retention: logs.RetentionDays.ONE_WEEK,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
-
-    new logs.LogGroup(this, 'TranscriptionHandlerLogGroup', {
-      logGroupName: '/aws/lambda/speech-to-email-transcription-handler',
-      retention: logs.RetentionDays.ONE_WEEK,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
-
-    new logs.LogGroup(this, 'EmailHandlerLogGroup', {
-      logGroupName: '/aws/lambda/speech-to-email-email-handler',
-      retention: logs.RetentionDays.ONE_WEEK,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
+    // Note: Lambda functions automatically create their own CloudWatch log groups
+    // Explicit log group creation removed to avoid circular dependencies
 
     // SES configuration
     const configurationSet = new ses.CfnConfigurationSet(this, 'SESConfigurationSet', {
@@ -470,12 +467,15 @@ export class SpeechToEmailStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'index.handler',
       code: lambda.Code.fromAsset('lambda/ses-notification-handler'),
-      role: lambdaExecutionRole,
+      role: sesNotificationHandlerRole,
       timeout: cdk.Duration.seconds(30),
       environment: {
         DYNAMODB_TABLE_NAME: speechProcessingTable.tableName,
       },
     });
+
+    // Grant permissions to SES Notification Handler
+    speechProcessingTable.grantReadWriteData(sesNotificationHandler);
 
     // Subscribe Lambda to SNS topic
     sesNotificationTopic.addSubscription(
@@ -551,48 +551,8 @@ export class SpeechToEmailStack extends cdk.Stack {
       description: 'ARN of the Status Handler Lambda function',
     });
 
-    // CloudWatch Alarms for monitoring
-    const functionConfigs = [
-      { func: uploadHandler, name: 'UploadHandler' },
-      { func: transcriptionHandler, name: 'TranscriptionHandler' },
-      { func: emailHandler, name: 'EmailHandler' },
-      { func: statusHandler, name: 'StatusHandler' },
-    ];
-    
-    functionConfigs.forEach(({ func, name }) => {
-      // Error rate alarm
-      new cloudwatch.Alarm(this, `${name}ErrorAlarm`, {
-        alarmName: `speech-to-email-${name.toLowerCase()}-error-rate`,
-        metric: func.metricErrors({
-          period: cdk.Duration.minutes(5),
-        }),
-        threshold: 5,
-        evaluationPeriods: 2,
-        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-      });
-
-      // Duration alarm
-      new cloudwatch.Alarm(this, `${name}DurationAlarm`, {
-        alarmName: `speech-to-email-${name.toLowerCase()}-duration`,
-        metric: func.metricDuration({
-          period: cdk.Duration.minutes(5),
-        }),
-        threshold: func.timeout?.toMilliseconds() || 30000 * 0.8, // 80% of timeout
-        evaluationPeriods: 3,
-        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-      });
-
-      // Throttle alarm
-      new cloudwatch.Alarm(this, `${name}ThrottleAlarm`, {
-        alarmName: `speech-to-email-${name.toLowerCase()}-throttles`,
-        metric: func.metricThrottles({
-          period: cdk.Duration.minutes(5),
-        }),
-        threshold: 1,
-        evaluationPeriods: 1,
-        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-      });
-    });
+    // CloudWatch Alarms temporarily removed to avoid circular dependencies
+    // TODO: Add monitoring in a separate stack or after initial deployment
 
     // DLQ alarm
     new cloudwatch.Alarm(this, 'DeadLetterQueueAlarm', {
@@ -610,61 +570,8 @@ export class SpeechToEmailStack extends cdk.Stack {
       description: 'URL of the Dead Letter Queue',
     });
 
-    // CloudWatch Dashboard
-    const dashboard = new cloudwatch.Dashboard(this, 'SpeechToEmailDashboard', {
-      dashboardName: 'SpeechToEmailMonitoring',
-    });
-
-    // Lambda metrics widgets
-    const lambdaMetricsWidget = new cloudwatch.GraphWidget({
-      title: 'Lambda Function Metrics',
-      left: [
-        uploadHandler.metricInvocations({ label: 'Upload Handler Invocations' }),
-        transcriptionHandler.metricInvocations({ label: 'Transcription Handler Invocations' }),
-        emailHandler.metricInvocations({ label: 'Email Handler Invocations' }),
-        statusHandler.metricInvocations({ label: 'Status Handler Invocations' }),
-      ],
-      right: [
-        uploadHandler.metricErrors({ label: 'Upload Handler Errors' }),
-        transcriptionHandler.metricErrors({ label: 'Transcription Handler Errors' }),
-        emailHandler.metricErrors({ label: 'Email Handler Errors' }),
-        statusHandler.metricErrors({ label: 'Status Handler Errors' }),
-      ],
-    });
-
-    // Lambda duration widget
-    const lambdaDurationWidget = new cloudwatch.GraphWidget({
-      title: 'Lambda Function Duration',
-      left: [
-        uploadHandler.metricDuration({ label: 'Upload Handler Duration' }),
-        transcriptionHandler.metricDuration({ label: 'Transcription Handler Duration' }),
-        emailHandler.metricDuration({ label: 'Email Handler Duration' }),
-        statusHandler.metricDuration({ label: 'Status Handler Duration' }),
-      ],
-    });
-
-    // API Gateway metrics widget
-    const apiMetricsWidget = new cloudwatch.GraphWidget({
-      title: 'API Gateway Metrics',
-      left: [
-        api.metricCount({ label: 'API Requests' }),
-        new cloudwatch.Metric({
-          namespace: 'AWS/ApiGateway',
-          metricName: '4XXError',
-          dimensionsMap: { ApiName: api.restApiName },
-          label: '4XX Errors',
-        }),
-        new cloudwatch.Metric({
-          namespace: 'AWS/ApiGateway',
-          metricName: '5XXError',
-          dimensionsMap: { ApiName: api.restApiName },
-          label: '5XX Errors',
-        }),
-      ],
-      right: [
-        api.metricLatency({ label: 'API Latency' }),
-      ],
-    });
+    // CloudWatch Dashboard and monitoring widgets temporarily removed to avoid circular dependencies
+    // TODO: Add monitoring in a separate stack or after initial deployment
 
     // DynamoDB metrics widget - temporarily disabled due to CDK deprecation warnings
     // const dynamoMetricsWidget = new cloudwatch.GraphWidget({
@@ -714,18 +621,18 @@ export class SpeechToEmailStack extends cdk.Stack {
         new cloudwatch.Metric({
           namespace: 'AWS/S3',
           metricName: 'BucketSizeBytes',
-          dimensionsMap: { 
+          dimensionsMap: {
             BucketName: audioStorageBucket.bucketName,
-            StorageType: 'StandardStorage' 
+            StorageType: 'StandardStorage'
           },
           label: 'Audio Bucket Size',
         }),
         new cloudwatch.Metric({
           namespace: 'AWS/S3',
           metricName: 'NumberOfObjects',
-          dimensionsMap: { 
+          dimensionsMap: {
             BucketName: audioStorageBucket.bucketName,
-            StorageType: 'AllStorageTypes' 
+            StorageType: 'AllStorageTypes'
           },
           label: 'Audio Objects Count',
         }),
@@ -766,117 +673,13 @@ export class SpeechToEmailStack extends cdk.Stack {
       businessMetricsWidget
     );
 
-    // Custom log groups for structured logging
-    const applicationLogGroup = new logs.LogGroup(this, 'ApplicationLogGroup', {
-      logGroupName: '/aws/speech-to-email/application',
-      retention: logs.RetentionDays.ONE_MONTH,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
+    // Custom log groups and monitoring components temporarily removed to avoid circular dependencies
+    // TODO: Add monitoring in a separate stack or after initial deployment
 
-    const securityLogGroup = new logs.LogGroup(this, 'SecurityLogGroup', {
-      logGroupName: '/aws/speech-to-email/security',
-      retention: logs.RetentionDays.THREE_MONTHS,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
+    // High-priority alarms temporarily removed to avoid circular dependencies
+    // TODO: Add monitoring in a separate stack or after initial deployment
 
-    // CloudWatch Insights queries
-    const insightsQueries = [
-      {
-        queryName: 'ErrorAnalysis',
-        logGroup: applicationLogGroup.logGroupName,
-        queryString: `
-          fields @timestamp, @message, @requestId
-          | filter @message like /ERROR/
-          | stats count() by bin(5m)
-          | sort @timestamp desc
-        `,
-      },
-      {
-        queryName: 'PerformanceAnalysis',
-        logGroup: applicationLogGroup.logGroupName,
-        queryString: `
-          fields @timestamp, @duration, @requestId
-          | filter @type = "REPORT"
-          | stats avg(@duration), max(@duration), min(@duration) by bin(5m)
-          | sort @timestamp desc
-        `,
-      },
-      {
-        queryName: 'SecurityEvents',
-        logGroup: securityLogGroup.logGroupName,
-        queryString: `
-          fields @timestamp, @message, sourceIP, userAgent
-          | filter @message like /SECURITY/
-          | stats count() by sourceIP
-          | sort count desc
-        `,
-      },
-    ];
-
-    // SNS topic for alerts
-    const alertTopic = new sns.Topic(this, 'AlertTopic', {
-      topicName: 'speech-to-email-alerts',
-      displayName: 'Speech to Email Alerts',
-    });
-
-    // High-priority alarms
-    const criticalAlarms = [
-      new cloudwatch.Alarm(this, 'HighErrorRateAlarm', {
-        alarmName: 'SpeechToEmail-HighErrorRate',
-        metric: new cloudwatch.MathExpression({
-          expression: '(errors / invocations) * 100',
-          usingMetrics: {
-            errors: uploadHandler.metricErrors().with({
-              statistic: 'Sum',
-              period: cdk.Duration.minutes(5),
-            }),
-            invocations: uploadHandler.metricInvocations().with({
-              statistic: 'Sum',
-              period: cdk.Duration.minutes(5),
-            }),
-          },
-        }),
-        threshold: 5, // 5% error rate
-        evaluationPeriods: 2,
-        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-      }),
-      
-      new cloudwatch.Alarm(this, 'DLQMessagesAlarm', {
-        alarmName: 'SpeechToEmail-DLQMessages',
-        metric: deadLetterQueue.metricApproximateNumberOfMessagesVisible(),
-        threshold: 1,
-        evaluationPeriods: 1,
-        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-      }),
-
-      new cloudwatch.Alarm(this, 'APIGateway5XXAlarm', {
-        alarmName: 'SpeechToEmail-API5XXErrors',
-        metric: new cloudwatch.Metric({
-          namespace: 'AWS/ApiGateway',
-          metricName: '5XXError',
-          dimensionsMap: { ApiName: api.restApiName },
-          period: cdk.Duration.minutes(5),
-        }),
-        threshold: 10,
-        evaluationPeriods: 2,
-        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-      }),
-    ];
-
-    // Add alarms to SNS topic
-    criticalAlarms.forEach(alarm => {
-      alarm.addAlarmAction(new cloudwatchActions.SnsAction(alertTopic));
-    });
-
-    new cdk.CfnOutput(this, 'DashboardUrl', {
-      value: `https://${this.region}.console.aws.amazon.com/cloudwatch/home?region=${this.region}#dashboards:name=${dashboard.dashboardName}`,
-      description: 'CloudWatch Dashboard URL',
-    });
-
-    new cdk.CfnOutput(this, 'AlertTopicArn', {
-      value: alertTopic.topicArn,
-      description: 'SNS Topic ARN for alerts',
-    });
+    // Dashboard and alert topic outputs temporarily removed
 
     new cdk.CfnOutput(this, 'EncryptionKeyId', {
       value: encryptionKey.keyId,
