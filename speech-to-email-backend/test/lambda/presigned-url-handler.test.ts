@@ -5,9 +5,9 @@ import { APIGatewayProxyEvent, Context } from 'aws-lambda';
 jest.mock('@aws-sdk/client-s3');
 jest.mock('@aws-sdk/s3-request-presigner');
 
-// Mock uuid
-jest.mock('uuid', () => ({
-  v4: () => 'test-uuid-1234-5678-9012-123456789012'
+// Mock UUID utility
+jest.mock('../../lambda/utils/uuid', () => ({
+  generateUuid: jest.fn().mockResolvedValue('test-uuid-1234-5678-9012-123456789012')
 }));
 
 describe('Presigned URL Handler', () => {

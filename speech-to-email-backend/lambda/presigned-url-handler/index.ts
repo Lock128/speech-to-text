@@ -3,7 +3,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { InputValidator } from '../utils/validation';
 import { createLogger } from '../utils/logger';
-import { v4 as uuidv4 } from 'uuid';
+import { generateUuid } from '../utils/uuid';
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION });
 
@@ -84,7 +84,7 @@ export const handler = async (
     };
 
     // Generate unique record ID and file key
-    const recordId = uuidv4();
+    const recordId = await generateUuid();
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
