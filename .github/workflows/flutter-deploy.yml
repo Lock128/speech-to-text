@@ -1,3 +1,22 @@
+# Flutter CI/CD Pipeline
+#
+# This workflow uses OIDC (OpenID Connect) for secure AWS authentication without long-lived access keys.
+#
+# Required GitHub Secrets:
+# - AWS_ROLE_TO_ASSUME: ARN of the IAM role for AWS operations
+# - AWS_REGION: AWS region for deployments (e.g., us-east-1)
+# - S3_WEB_BUCKET_NAME: S3 bucket name for web app hosting
+# - CLOUDFRONT_DISTRIBUTION_ID: CloudFront distribution ID for cache invalidation
+# - CLOUDFRONT_DOMAIN_NAME: CloudFront domain name for the web app
+# - API_BASE_URL: Base URL for the backend API
+# - FIREBASE_ANDROID_APP_ID: Firebase app ID for Android app distribution
+# - FIREBASE_SERVICE_ACCOUNT: Firebase service account JSON for app distribution
+#
+# Required AWS Setup:
+# 1. Create an OIDC identity provider in AWS IAM
+# 2. Create IAM role with trust policy that allows GitHub Actions to assume it
+# 3. Attach policies for S3 and CloudFront operations
+
 name: Flutter CI/CD Pipeline
 
 on:
@@ -128,6 +147,9 @@ jobs:
     needs: build
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -141,9 +163,9 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ secrets.AWS_REGION }}
+          role-session-name: GitHubActions-Flutter-Deploy
 
       - name: Deploy to S3
         run: |

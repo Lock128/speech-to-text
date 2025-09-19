@@ -1,3 +1,37 @@
+# AWS CDK CI/CD Pipeline
+# 
+# This workflow uses OIDC (OpenID Connect) for secure AWS authentication without long-lived access keys.
+# 
+# Required GitHub Secrets:
+# - AWS_ROLE_TO_ASSUME: ARN of the IAM role for production deployments
+# - AWS_ROLE_TO_ASSUME_DEV: ARN of the IAM role for development deployments  
+# - AWS_REGION: AWS region for deployments (e.g., us-east-1)
+#
+# Required AWS Setup:
+# 1. Create an OIDC identity provider in AWS IAM
+# 2. Create IAM roles with trust policies that allow GitHub Actions to assume them
+# 3. Attach necessary policies to the roles (CDK deployment permissions)
+#
+# Example trust policy for the IAM role:
+# {
+#   "Version": "2012-10-17",
+#   "Statement": [
+#     {
+#       "Effect": "Allow",
+#       "Principal": {
+#         "Federated": "arn:aws:iam::ACCOUNT-ID:oidc-provider/token.actions.githubusercontent.com"
+#       },
+#       "Action": "sts:AssumeRoleWithWebIdentity",
+#       "Condition": {
+#         "StringEquals": {
+#           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+#           "token.actions.githubusercontent.com:sub": "repo:YOUR-ORG/YOUR-REPO:ref:refs/heads/main"
+#         }
+#       }
+#     }
+#   ]
+# }
+
 name: AWS CDK CI/CD Pipeline
 
 on:
@@ -11,7 +45,6 @@ on:
 
 env:
   NODE_VERSION: '18'
-  AWS_REGION: 'us-east-1'
 
 jobs:
   validate:
@@ -95,6 +128,9 @@ jobs:
     needs: [validate, security-scan]
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
     environment: development
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -113,13 +149,15 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
-          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME_DEV }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-session-name: GitHubActions-CDK-Dev
 
       - name: CDK Bootstrap (Development)
         run: npx cdk bootstrap --context environment=dev
         working-directory: ./speech-to-email-backend
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION }}
 
       - name: CDK Deploy (Development)
         run: |
@@ -128,6 +166,8 @@ jobs:
             --context environment=dev \
             --outputs-file cdk-outputs-dev.json
         working-directory: ./speech-to-email-backend
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION }}
 
       - name: Upload deployment outputs
         uses: actions/upload-artifact@v4
@@ -141,6 +181,9 @@ jobs:
     needs: [validate, security-scan]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: production
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -159,17 +202,21 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-session-name: GitHubActions-CDK-Prod
 
       - name: CDK Bootstrap (Production)
         run: npx cdk bootstrap --context environment=prod
         working-directory: ./speech-to-email-backend
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION }}
 
       - name: CDK Diff (Production)
         run: npx cdk diff --all --context environment=prod
         working-directory: ./speech-to-email-backend
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION }}
 
       - name: CDK Deploy (Production)
         run: |
@@ -178,6 +225,8 @@ jobs:
             --context environment=prod \
             --outputs-file cdk-outputs-prod.json
         working-directory: ./speech-to-email-backend
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION }}
 
       - name: Upload deployment outputs
         uses: actions/upload-artifact@v4
@@ -204,6 +253,9 @@ jobs:
     runs-on: ubuntu-latest
     if: failure() && github.ref == 'refs/heads/main'
     environment: production
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -224,9 +276,9 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-session-name: GitHubActions-CDK-Rollback
 
       - name: Get previous commit
         run: |
@@ -248,6 +300,8 @@ jobs:
             --require-approval never \
             --context environment=prod
         working-directory: ./speech-to-email-backend
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION }}
 
       - name: Notify rollback
         run: |
