@@ -150,6 +150,15 @@ jobs:
         run: npm ci
         working-directory: ./speech-to-email-backend
 
+      - name: Debug OIDC Configuration (Dev)
+        run: |
+          echo "=== Development Deployment Debug ==="
+          echo "Repository: ${{ github.repository }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "Expected subject: repo:${{ github.repository }}:ref:${{ github.ref }}"
+          echo "Role ARN: ${{ secrets.AWS_ROLE_TO_ASSUME_DEV }}"
+          echo "Region: ${{ secrets.AWS_REGION }}"
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -158,7 +167,19 @@ jobs:
           role-session-name: GitHubActions-CDK-Dev
 
       - name: CDK Bootstrap (Development)
-        run: npx cdk bootstrap --context environment=dev
+        run: |
+          echo "Attempting CDK bootstrap..."
+          if ! npx cdk bootstrap --context environment=dev; then
+            echo "Bootstrap failed, attempting recovery..."
+            echo "Checking if CDKToolkit stack exists..."
+            if aws cloudformation describe-stacks --stack-name CDKToolkit --region ${{ secrets.AWS_REGION }} 2>/dev/null; then
+              echo "CDKToolkit stack exists but is in failed state, forcing re-bootstrap..."
+              npx cdk bootstrap --force --context environment=dev
+            else
+              echo "CDKToolkit stack doesn't exist, creating fresh bootstrap..."
+              npx cdk bootstrap --context environment=dev
+            fi
+          fi
         working-directory: ./speech-to-email-backend
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
@@ -203,8 +224,23 @@ jobs:
         run: npm ci
         working-directory: ./speech-to-email-backend
 
-      - name: print
-        run: echo ${{secrets.AWS_ROLE_TO_ASSUME}} | sed 's/./& /g'
+      - name: Debug OIDC Configuration
+        run: |
+          echo "=== GitHub Token Claims ==="
+          echo "Repository: ${{ github.repository }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "SHA: ${{ github.sha }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "Event: ${{ github.event_name }}"
+          echo ""
+          echo "=== Expected Trust Policy Subject ==="
+          echo "repo:${{ github.repository }}:ref:${{ github.ref }}"
+          echo ""
+          echo "=== Role ARN to Assume ==="
+          echo "${{ secrets.AWS_ROLE_TO_ASSUME }}"
+          echo ""
+          echo "=== AWS Region ==="
+          echo "${{ secrets.AWS_REGION }}"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -214,7 +250,19 @@ jobs:
           role-session-name: GitHubActions-CDK-Prod
 
       - name: CDK Bootstrap (Production)
-        run: npx cdk bootstrap --context environment=prod
+        run: |
+          echo "Attempting CDK bootstrap..."
+          if ! npx cdk bootstrap --context environment=prod; then
+            echo "Bootstrap failed, attempting recovery..."
+            echo "Checking if CDKToolkit stack exists..."
+            if aws cloudformation describe-stacks --stack-name CDKToolkit --region ${{ secrets.AWS_REGION }} 2>/dev/null; then
+              echo "CDKToolkit stack exists but is in failed state, forcing re-bootstrap..."
+              npx cdk bootstrap --force --context environment=prod
+            else
+              echo "CDKToolkit stack doesn't exist, creating fresh bootstrap..."
+              npx cdk bootstrap --context environment=prod
+            fi
+          fi
         working-directory: ./speech-to-email-backend
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
