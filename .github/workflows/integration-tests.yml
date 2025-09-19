@@ -206,7 +206,7 @@ jobs:
           echo "- Error Handling: Tested" >> test-report.md
 
       - name: Upload test report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: integration-test-report

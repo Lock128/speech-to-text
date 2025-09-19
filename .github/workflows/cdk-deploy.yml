@@ -48,7 +48,7 @@ jobs:
         working-directory: ./speech-to-email-backend
 
       - name: Upload CDK templates
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cdk-templates
           path: speech-to-email-backend/cdk.out/
@@ -129,7 +129,7 @@ jobs:
         working-directory: ./speech-to-email-backend
 
       - name: Upload deployment outputs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cdk-outputs-dev
           path: speech-to-email-backend/cdk-outputs-dev.json
@@ -179,7 +179,7 @@ jobs:
         working-directory: ./speech-to-email-backend
 
       - name: Upload deployment outputs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cdk-outputs-prod
           path: speech-to-email-backend/cdk-outputs-prod.json
