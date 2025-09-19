@@ -4,7 +4,7 @@ This is a  project for CDK development with TypeScript.
 
 The `cdk.json` file tells the CDK Toolkit how to execute your app.
 
-This is deployed using Github actions
+This is deployed using Github actions.
 
 ## Useful commands
 
