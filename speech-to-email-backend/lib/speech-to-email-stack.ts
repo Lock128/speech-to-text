@@ -3,8 +3,7 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import * as logs from 'aws-cdk-lib/aws-logs';
-import * as ses from 'aws-cdk-lib/aws-ses';
+
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
@@ -16,7 +15,7 @@ import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 
-import * as waf from 'aws-cdk-lib/aws-wafv2';
+
 import * as kms from 'aws-cdk-lib/aws-kms';
 import { Construct } from 'constructs';
 
@@ -262,66 +261,8 @@ export class SpeechToEmailStack extends cdk.Stack {
     // Grant permissions to Presigned URL Handler
     audioStorageBucket.grantPut(presignedUrlHandler);
 
-    // WAF Web ACL for API Gateway protection
-    const webAcl = new waf.CfnWebACL(this, 'ApiGatewayWebACL', {
-      scope: 'REGIONAL',
-      defaultAction: { allow: {} },
-      rules: [
-        {
-          name: 'RateLimitRule',
-          priority: 1,
-          statement: {
-            rateBasedStatement: {
-              limit: 1000, // 1000 requests per 5 minutes
-              aggregateKeyType: 'IP',
-            },
-          },
-          action: { block: {} },
-          visibilityConfig: {
-            sampledRequestsEnabled: true,
-            cloudWatchMetricsEnabled: true,
-            metricName: 'RateLimitRule',
-          },
-        },
-        {
-          name: 'AWSManagedRulesCommonRuleSet',
-          priority: 2,
-          overrideAction: { none: {} },
-          statement: {
-            managedRuleGroupStatement: {
-              vendorName: 'AWS',
-              name: 'AWSManagedRulesCommonRuleSet',
-            },
-          },
-          visibilityConfig: {
-            sampledRequestsEnabled: true,
-            cloudWatchMetricsEnabled: true,
-            metricName: 'CommonRuleSetMetric',
-          },
-        },
-        {
-          name: 'AWSManagedRulesKnownBadInputsRuleSet',
-          priority: 3,
-          overrideAction: { none: {} },
-          statement: {
-            managedRuleGroupStatement: {
-              vendorName: 'AWS',
-              name: 'AWSManagedRulesKnownBadInputsRuleSet',
-            },
-          },
-          visibilityConfig: {
-            sampledRequestsEnabled: true,
-            cloudWatchMetricsEnabled: true,
-            metricName: 'KnownBadInputsRuleSetMetric',
-          },
-        },
-      ],
-      visibilityConfig: {
-        sampledRequestsEnabled: true,
-        cloudWatchMetricsEnabled: true,
-        metricName: 'SpeechToEmailWebACL',
-      },
-    });
+    // WAF configuration temporarily removed to avoid deployment issues
+    // TODO: Add WAF protection after initial deployment
 
     // API Gateway for presigned URL generation
     const api = new apigateway.RestApi(this, 'SpeechToEmailApi', {
@@ -340,11 +281,7 @@ export class SpeechToEmailStack extends cdk.Stack {
       },
     });
 
-    // Associate WAF with API Gateway
-    new waf.CfnWebACLAssociation(this, 'ApiGatewayWebACLAssociation', {
-      resourceArn: `arn:aws:apigateway:${this.region}::/restapis/${api.restApiId}/stages/prod`,
-      webAclArn: webAcl.attrArn,
-    });
+    // WAF association temporarily removed to avoid deployment issues
 
     // Status Handler Lambda
     const statusHandler = new lambda.Function(this, 'StatusHandler', {
