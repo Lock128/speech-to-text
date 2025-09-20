@@ -2,7 +2,7 @@ class AppConfig {
   // API Configuration
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://your-api-gateway-url.execute-api.us-east-1.amazonaws.com/prod',
+    defaultValue: 'https://1uds19zmja.execute-api.eu-central-1.amazonaws.com/prod',
   );
   
   static const String presignedUrlEndpoint = '$apiBaseUrl/presigned-url';

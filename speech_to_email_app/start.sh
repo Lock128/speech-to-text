@@ -1,0 +1,1 @@
+flutter run -d chrome --dart-define=API_BASE_URL=https://1uds19zmja.execute-api.eu-central-1.amazonaws.com/prod

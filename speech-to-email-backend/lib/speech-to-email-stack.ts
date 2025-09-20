@@ -270,8 +270,16 @@ export class SpeechToEmailStack extends cdk.Stack {
       description: 'API for Speech to Email application',
       defaultCorsPreflightOptions: {
         allowOrigins: apigateway.Cors.ALL_ORIGINS,
-        allowMethods: apigateway.Cors.ALL_METHODS,
-        allowHeaders: ['Content-Type', 'X-Amz-Date', 'Authorization', 'X-Api-Key'],
+        allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        allowHeaders: [
+          'Content-Type', 
+          'X-Amz-Date', 
+          'Authorization', 
+          'X-Api-Key',
+          'X-Amz-Security-Token',
+          'X-Amz-User-Agent'
+        ],
+        allowCredentials: false,
       },
       deployOptions: {
         stageName: 'prod',

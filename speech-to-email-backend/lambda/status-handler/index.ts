@@ -9,18 +9,22 @@ export const handler = async (
 ): Promise<APIGatewayProxyResult> => {
   console.log('Status handler triggered:', JSON.stringify(event, null, 2));
 
+  // Consistent CORS headers for all responses
+  const corsHeaders = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Amz-User-Agent',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Credentials': 'false',
+  };
+
   try {
     const recordId = event.pathParameters?.recordId;
     
     if (!recordId) {
       return {
         statusCode: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Content-Type',
-          'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        },
+        headers: corsHeaders,
         body: JSON.stringify({ error: 'Record ID is required' }),
       };
     }
@@ -39,12 +43,7 @@ export const handler = async (
     if (!result.Item) {
       return {
         statusCode: 404,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Content-Type',
-          'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        },
+        headers: corsHeaders,
         body: JSON.stringify({ error: 'Record not found' }),
       };
     }
@@ -90,12 +89,7 @@ export const handler = async (
 
     return {
       statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      },
+      headers: corsHeaders,
       body: JSON.stringify(response),
     };
 
@@ -104,12 +98,7 @@ export const handler = async (
     
     return {
       statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      },
+      headers: corsHeaders,
       body: JSON.stringify({ error: 'Internal server error' }),
     };
   }
