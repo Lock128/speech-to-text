@@ -15,7 +15,7 @@ import * as sns from 'aws-cdk-lib/aws-sns';
 import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
-import * as cloudwatchActions from 'aws-cdk-lib/aws-cloudwatch-actions';
+
 import * as waf from 'aws-cdk-lib/aws-wafv2';
 import * as kms from 'aws-cdk-lib/aws-kms';
 import { Construct } from 'constructs';
@@ -424,36 +424,8 @@ export class SpeechToEmailStack extends cdk.Stack {
     // Note: Lambda functions automatically create their own CloudWatch log groups
     // Explicit log group creation removed to avoid circular dependencies
 
-    // SES configuration
-    const configurationSet = new ses.CfnConfigurationSet(this, 'SESConfigurationSet', {
-      name: 'speech-to-email-config-set',
-    });
-
-    // SES Configuration Set Event Destination for bounce/complaint handling
-    new ses.CfnConfigurationSetEventDestination(this, 'SESEventDestination', {
-      configurationSetName: configurationSet.name!,
-      eventDestination: {
-        name: 'cloudwatch-event-destination',
-        enabled: true,
-        matchingEventTypes: ['bounce', 'complaint', 'reject'],
-        cloudWatchDestination: {
-          dimensionConfigurations: [
-            {
-              dimensionName: 'MessageTag',
-              dimensionValueSource: 'messageTag',
-              defaultDimensionValue: 'speech-to-email',
-            },
-          ],
-        },
-      },
-    });
-
-    // Create CloudWatch log group for SES events
-    new logs.LogGroup(this, 'SESLogGroup', {
-      logGroupName: '/aws/ses/speech-to-email',
-      retention: logs.RetentionDays.ONE_MONTH,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
+    // SES configuration temporarily simplified to avoid deployment issues
+    // TODO: Add SES configuration set and event destinations after initial deployment
 
     // SNS topic for SES bounce and complaint notifications
     const sesNotificationTopic = new sns.Topic(this, 'SESNotificationTopic', {
