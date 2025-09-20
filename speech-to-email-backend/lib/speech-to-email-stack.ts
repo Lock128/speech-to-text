@@ -614,64 +614,9 @@ export class SpeechToEmailStack extends cdk.Stack {
     //   ],
     // });
 
-    // S3 metrics widget
-    const s3MetricsWidget = new cloudwatch.GraphWidget({
-      title: 'S3 Storage Metrics',
-      left: [
-        new cloudwatch.Metric({
-          namespace: 'AWS/S3',
-          metricName: 'BucketSizeBytes',
-          dimensionsMap: {
-            BucketName: audioStorageBucket.bucketName,
-            StorageType: 'StandardStorage'
-          },
-          label: 'Audio Bucket Size',
-        }),
-        new cloudwatch.Metric({
-          namespace: 'AWS/S3',
-          metricName: 'NumberOfObjects',
-          dimensionsMap: {
-            BucketName: audioStorageBucket.bucketName,
-            StorageType: 'AllStorageTypes'
-          },
-          label: 'Audio Objects Count',
-        }),
-      ],
-    });
+    // S3 and business metrics widgets temporarily removed to avoid circular dependencies
 
-    // Custom business metrics
-    const businessMetricsWidget = new cloudwatch.GraphWidget({
-      title: 'Business Metrics',
-      left: [
-        new cloudwatch.Metric({
-          namespace: 'SpeechToEmail',
-          metricName: 'RecordingsProcessed',
-          label: 'Recordings Processed',
-        }),
-        new cloudwatch.Metric({
-          namespace: 'SpeechToEmail',
-          metricName: 'EmailsSent',
-          label: 'Emails Sent',
-        }),
-      ],
-      right: [
-        new cloudwatch.Metric({
-          namespace: 'SpeechToEmail',
-          metricName: 'ProcessingFailures',
-          label: 'Processing Failures',
-        }),
-      ],
-    });
-
-    // Add widgets to dashboard
-    dashboard.addWidgets(
-      lambdaMetricsWidget,
-      lambdaDurationWidget,
-      apiMetricsWidget,
-      // dynamoMetricsWidget, // temporarily disabled due to CDK deprecation warnings
-      s3MetricsWidget,
-      businessMetricsWidget
-    );
+    // Dashboard widgets temporarily removed to avoid circular dependencies
 
     // Custom log groups and monitoring components temporarily removed to avoid circular dependencies
     // TODO: Add monitoring in a separate stack or after initial deployment
