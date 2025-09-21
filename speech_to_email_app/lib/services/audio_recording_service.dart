@@ -41,6 +41,21 @@ class AudioRecordingService {
         debugPrint('Permission denied/restricted, requesting...');
         final result = await Permission.microphone.request();
         debugPrint('Permission request result: $result');
+        
+        // iOS workaround: Sometimes the permission dialog doesn't work properly
+        // due to incomplete Xcode/CocoaPods setup. Wait a bit and check again.
+        if (!result.isGranted && Platform.isIOS) {
+          debugPrint('iOS permission request failed, waiting and retrying...');
+          await Future.delayed(Duration(milliseconds: 500));
+          final retryStatus = await Permission.microphone.status;
+          debugPrint('Retry permission status: $retryStatus');
+          if (!retryStatus.isGranted) {
+            debugPrint('Opening settings for manual permission grant');
+            await openAppSettings();
+          }
+          return retryStatus.isGranted;
+        }
+        
         return result.isGranted;
       }
       
