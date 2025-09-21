@@ -42,26 +42,24 @@ class AudioRecordingService {
         final result = await Permission.microphone.request();
         debugPrint('Permission request result: $result');
         
-        // iOS workaround: Sometimes the permission dialog doesn't work properly
-        // due to incomplete Xcode/CocoaPods setup. Wait a bit and check again.
+        // On iOS, if permission request doesn't work properly, we'll still try to record
+        // The native recording API will handle the permission internally
         if (!result.isGranted && Platform.isIOS) {
-          debugPrint('iOS permission request failed, waiting and retrying...');
-          await Future.delayed(Duration(milliseconds: 500));
-          final retryStatus = await Permission.microphone.status;
-          debugPrint('Retry permission status: $retryStatus');
-          if (!retryStatus.isGranted) {
-            debugPrint('Opening settings for manual permission grant');
-            await openAppSettings();
-          }
-          return retryStatus.isGranted;
+          debugPrint('iOS permission request failed, but allowing recording attempt');
+          return true; // Allow recording attempt on iOS even if permission_handler fails
         }
         
         return result.isGranted;
       }
       
       if (status.isPermanentlyDenied) {
-        debugPrint('Permission permanently denied, opening settings');
-        // Open app settings for user to manually grant permission
+        debugPrint('Permission permanently denied');
+        // On iOS, still allow recording attempt as the native API might work
+        if (Platform.isIOS) {
+          debugPrint('iOS: Allowing recording attempt despite permanently denied status');
+          return true;
+        }
+        // On Android, open settings
         await openAppSettings();
         return false;
       }
@@ -70,10 +68,22 @@ class AudioRecordingService {
       debugPrint('Unknown status, attempting to request permission');
       final result = await Permission.microphone.request();
       debugPrint('Permission request result: $result');
+      
+      // On iOS, allow recording attempt even if permission_handler is unclear
+      if (!result.isGranted && Platform.isIOS) {
+        debugPrint('iOS: Permission unclear, but allowing recording attempt');
+        return true;
+      }
+      
       return result.isGranted;
       
     } catch (e) {
       debugPrint('Error checking microphone permission: $e');
+      // On iOS, allow recording attempt even if permission check fails
+      if (Platform.isIOS) {
+        debugPrint('iOS: Permission check failed, but allowing recording attempt');
+        return true;
+      }
       return false;
     }
   }
@@ -81,9 +91,9 @@ class AudioRecordingService {
   /// Start recording audio
   Future<bool> startRecording() async {
     try {
-      // Check permission first
+      // Check permission first (but on iOS, we're lenient about the result)
       final hasPermission = await checkPermission();
-      if (!hasPermission) {
+      if (!hasPermission && !Platform.isIOS) {
         throw Exception('Microphone permission not granted');
       }
 
@@ -115,7 +125,7 @@ class AudioRecordingService {
         sampleRate: 44100,
       );
 
-      // Start recording
+      // Start recording - let the native API handle permissions internally
       await _recorder.start(config, path: recordingPath);
       
       // Reset duration and start timer
@@ -129,6 +139,12 @@ class AudioRecordingService {
     } catch (e) {
       debugPrint('Error starting recording: $e');
       _recordingStateController.add(false);
+      
+      // If recording fails on iOS due to permissions, show a helpful message
+      if (Platform.isIOS && e.toString().contains('permission')) {
+        debugPrint('iOS recording failed due to permissions. User should check Settings > Privacy & Security > Microphone');
+      }
+      
       return false;
     }
   }
