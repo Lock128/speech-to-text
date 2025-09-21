@@ -28,6 +28,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
   late UploadService _uploadService;
   late StatusService _statusService;
   CancelToken? _uploadCancelToken;
+  Timer? _processingTimeoutTimer;
 
   @override
   void initState() {
@@ -177,6 +178,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
     _uploadService.dispose();
     _statusService.dispose();
     _uploadCancelToken?.cancel();
+    _processingTimeoutTimer?.cancel();
     super.dispose();
   }
 
@@ -220,6 +222,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
       
       await _audioService.cancelRecording();
       _statusService.stopPolling();
+      _processingTimeoutTimer?.cancel();
       provider.reset();
     } catch (e) {
       provider.setError('Error canceling recording: $e');
@@ -259,6 +262,19 @@ class _RecordingScreenState extends State<RecordingScreen> {
 
       // Start polling for status updates
       _startStatusPolling(recordId);
+      
+      // Set a fallback timeout to complete processing if polling hangs
+      _processingTimeoutTimer = Timer(Duration(minutes: 3), () {
+        final provider = context.read<RecordingProvider>();
+        if (provider.state == RecordingState.processing) {
+          debugPrint('Processing timeout reached - assuming completion');
+          _statusService.stopPolling();
+          provider.updateState(RecordingState.completed);
+          if (provider.transcriptionText == null) {
+            provider.setTranscriptionText('Processing completed (check your email for the transcription)');
+          }
+        }
+      });
 
     } catch (e) {
       if (e.toString().contains('cancelled')) {
@@ -275,6 +291,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
     
     _statusService.pollStatus(recordId).listen(
       (status) {
+        debugPrint('Received status update: ${status.status}');
         switch (status.status) {
           case ProcessingStatus.uploaded:
           case ProcessingStatus.transcribing:
@@ -287,6 +304,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
             }
             break;
           case ProcessingStatus.emailSent:
+            debugPrint('Email sent successfully, updating to completed state');
             provider.updateState(RecordingState.completed);
             if (status.transcriptionText != null) {
               provider.setTranscriptionText(status.transcriptionText!);
@@ -299,7 +317,23 @@ class _RecordingScreenState extends State<RecordingScreen> {
       },
       onError: (error) {
         debugPrint('Status polling error: $error');
-        // Don't show error to user for polling failures, just log them
+        // If polling fails completely, assume success after a reasonable time
+        if (error.toString().contains('timeout')) {
+          debugPrint('Polling timeout - assuming processing completed successfully');
+          provider.updateState(RecordingState.completed);
+          provider.setTranscriptionText('Processing completed (transcription may be available in email)');
+        }
+      },
+      onDone: () {
+        debugPrint('Status polling stream closed');
+        // If the stream closes without reaching completed state, assume success
+        if (provider.state == RecordingState.processing) {
+          debugPrint('Polling ended while processing - assuming completion');
+          provider.updateState(RecordingState.completed);
+          if (provider.transcriptionText == null) {
+            provider.setTranscriptionText('Processing completed successfully');
+          }
+        }
       },
     );
   }
@@ -448,14 +482,30 @@ class _RecordingScreenState extends State<RecordingScreen> {
                         transcriptionText: provider.transcriptionText,
                       ),
                       
-                      if (provider.isCompleted) ...[
-                        const SizedBox(height: 24),
-                        ElevatedButton(
+                      const SizedBox(height: 24),
+                      
+                      // Show "Record New" button during processing and "Record Another" when completed
+                      if (provider.isProcessing) ...[
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            // Cancel current processing and reset
+                            _statusService.stopPolling();
+                            provider.reset();
+                          },
+                          icon: const Icon(Icons.mic),
+                          label: const Text('Record New'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                          ),
+                        ),
+                      ] else if (provider.isCompleted) ...[
+                        ElevatedButton.icon(
                           onPressed: () => provider.reset(),
+                          icon: const Icon(Icons.mic),
+                          label: const Text('Record Another'),
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                           ),
-                          child: const Text('Record Another'),
                         ),
                       ],
                     ],

@@ -49,6 +49,7 @@ class StatusService {
         // Stop polling if processing is complete or failed
         if (status.status == ProcessingStatus.emailSent || 
             status.status == ProcessingStatus.failed) {
+          debugPrint('Processing completed with status: ${status.status}');
           timer.cancel();
           if (!controller.isClosed) {
             controller.close();

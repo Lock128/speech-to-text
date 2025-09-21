@@ -100,7 +100,7 @@ export const handler = async (event: S3Event, context: Context) => {
           MediaFileUri: s3Uri,
         },
         MediaFormat: getMediaFormat(objectKey),
-        LanguageCode: 'en-US',
+        LanguageCode: 'de-DE',
         OutputBucketName: bucketName,
         OutputKey: `transcriptions/${recordId}.json`,
         Settings: {
