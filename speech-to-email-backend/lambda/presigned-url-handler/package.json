@@ -1,0 +1,10 @@
+{
+  "name": "presigned-url-handler",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.891.0",
+    "@aws-sdk/s3-request-presigner": "^3.891.0",
+    "uuid": "^13.0.0"
+  }
+}

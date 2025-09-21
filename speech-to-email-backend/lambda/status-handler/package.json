@@ -1,0 +1,8 @@
+{
+  "name": "status-handler",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.891.0"
+  }
+}

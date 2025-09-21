@@ -1,9 +1,9 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { InputValidator } from '../utils/validation';
-import { createLogger } from '../utils/logger';
-import { generateUuid } from '../utils/uuid';
+import { InputValidator } from './utils/validation';
+import { createLogger } from './utils/logger';
+import { generateUuid } from './utils/uuid';
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION });
 
