@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:dio/dio.dart';
 import '../providers/recording_provider.dart';
@@ -34,6 +35,59 @@ class _RecordingScreenState extends State<RecordingScreen> {
     _uploadService = UploadService();
     _statusService = StatusService();
     _setupListeners();
+    _requestPermissions();
+  }
+
+  /// Request microphone permissions on app startup
+  void _requestPermissions() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        final hasPermission = await _audioService.checkPermission();
+        if (!hasPermission && mounted) {
+          _showPermissionDialog();
+        }
+      } catch (e) {
+        debugPrint('Error requesting permissions: $e');
+      }
+    });
+  }
+
+  /// Show permission dialog to user
+  void _showPermissionDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Microphone Permission Required'),
+          content: const Text(
+            'This app needs access to your microphone to record speech messages. '
+            'Please grant microphone permission to continue.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                final provider = context.read<RecordingProvider>();
+                provider.setError('Microphone permission denied. Recording is not available.');
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                final hasPermission = await _audioService.checkPermission();
+                if (!hasPermission && mounted) {
+                  final provider = context.read<RecordingProvider>();
+                  provider.setError('Microphone permission is required. Please grant permission in Settings.');
+                }
+              },
+              child: const Text('Grant Permission'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _setupListeners() {
