@@ -15,7 +15,7 @@ import * as sns from 'aws-cdk-lib/aws-sns';
 import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
-
+import * as ses from 'aws-cdk-lib/aws-ses';
 
 import * as kms from 'aws-cdk-lib/aws-kms';
 import { Construct } from 'constructs';
@@ -214,8 +214,8 @@ export class SpeechToEmailStack extends cdk.Stack {
       deadLetterQueue: deadLetterQueue,
       environment: {
         DYNAMODB_TABLE_NAME: speechProcessingTable.tableName,
-        RECIPIENT_EMAIL: 'johannes.koch@gmail.com',
-        SENDER_EMAIL: 'noreply@speech-to-email.com', // This needs to be verified in SES
+        RECIPIENT_EMAIL: 'lockhead+hcvflmail@lockhead.info',
+        SENDER_EMAIL: 'lockhead+noreply@lockhead.info', // This needs to be verified in SES
       },
       bundling: {
         externalModules: ['aws-sdk'],
@@ -385,7 +385,8 @@ export class SpeechToEmailStack extends cdk.Stack {
     // S3 bucket notification to trigger upload handler
     audioStorageBucket.addEventNotification(
       s3.EventType.OBJECT_CREATED,
-      new s3n.LambdaDestination(uploadHandler)
+      new s3n.LambdaDestination(uploadHandler),
+      { prefix: 'audio-files/' } // Only trigger for files in the audio-files prefix
     );
 
     // EventBridge rule for Transcribe job completion
@@ -438,6 +439,27 @@ export class SpeechToEmailStack extends cdk.Stack {
     sesNotificationTopic.addSubscription(
       new subscriptions.LambdaSubscription(sesNotificationHandler)
     );
+
+    // SES Configuration Set for email tracking
+    const sesConfigurationSet = new ses.CfnConfigurationSet(this, 'SESConfigurationSet', {
+      name: 'speech-to-email-config-set',
+    });
+
+    // SES Event Destination for bounce and complaint tracking
+    const sesEventDestination = new ses.CfnConfigurationSetEventDestination(this, 'SESEventDestination', {
+      configurationSetName: sesConfigurationSet.name!,
+      eventDestination: {
+        name: 'sns-event-destination',
+        enabled: true,
+        matchingEventTypes: ['bounce', 'complaint', 'reject'],
+        snsDestination: {
+          topicArn: sesNotificationTopic.topicArn,
+        },
+      },
+    });
+
+    // Ensure proper dependency order
+    sesEventDestination.addDependency(sesConfigurationSet);
 
     // Output important values
     new cdk.CfnOutput(this, 'AudioBucketName', {

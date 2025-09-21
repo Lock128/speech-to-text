@@ -1,5 +1,5 @@
 import { S3Event, Context } from 'aws-lambda';
-import { DynamoDBClient, PutItemCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, PutItemCommand, UpdateItemCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { TranscribeClient, StartTranscriptionJobCommand } from '@aws-sdk/client-transcribe';
 
 const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION });
@@ -38,6 +38,21 @@ export const handler = async (event: S3Event, context: Context) => {
 
       const now = new Date().toISOString();
       
+      // Check if record already exists to prevent duplicate processing
+      const getCommand = new GetItemCommand({
+        TableName: process.env.DYNAMODB_TABLE_NAME,
+        Key: {
+          PK: { S: recordId },
+          SK: { S: 'RECORD' },
+        },
+      });
+
+      const existingRecord = await dynamoClient.send(getCommand);
+      if (existingRecord.Item) {
+        console.log(`Record ${recordId} already exists, skipping duplicate processing`);
+        continue;
+      }
+
       // Create DynamoDB record
       const dynamoRecord: ProcessingRecord = {
         PK: recordId,
@@ -49,7 +64,7 @@ export const handler = async (event: S3Event, context: Context) => {
         retryCount: 0,
       };
 
-      // Store record in DynamoDB
+      // Store record in DynamoDB with conditional write to prevent duplicates
       const putCommand = new PutItemCommand({
         TableName: process.env.DYNAMODB_TABLE_NAME,
         Item: {
@@ -61,10 +76,19 @@ export const handler = async (event: S3Event, context: Context) => {
           updatedAt: { S: dynamoRecord.updatedAt },
           retryCount: { N: dynamoRecord.retryCount.toString() },
         },
+        ConditionExpression: 'attribute_not_exists(PK)', // Only create if doesn't exist
       });
 
-      await dynamoClient.send(putCommand);
-      console.log(`Created DynamoDB record for ${recordId}`);
+      try {
+        await dynamoClient.send(putCommand);
+        console.log(`Created DynamoDB record for ${recordId}`);
+      } catch (error: any) {
+        if (error.name === 'ConditionalCheckFailedException') {
+          console.log(`Record ${recordId} already exists, skipping duplicate processing`);
+          continue;
+        }
+        throw error;
+      }
 
       // Start transcription job
       const transcribeJobName = `speech-to-email-${recordId}-${Date.now()}`;
