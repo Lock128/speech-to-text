@@ -2,6 +2,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as iam from 'aws-cdk-lib/aws-iam';
 
 import * as events from 'aws-cdk-lib/aws-events';
@@ -168,11 +169,11 @@ export class SpeechToEmailStack extends cdk.Stack {
     });
 
     // Upload Handler Lambda
-    const uploadHandler = new lambda.Function(this, 'UploadHandler', {
+    const uploadHandler = new nodejs.NodejsFunction(this, 'UploadHandler', {
       functionName: 'speech-to-email-upload-handler',
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset('lambda/upload-handler'),
+      entry: 'lambda/upload-handler/index.ts',
+      handler: 'handler',
       role: uploadHandlerRole,
       timeout: cdk.Duration.seconds(30),
       retryAttempts: 2,
@@ -181,6 +182,11 @@ export class SpeechToEmailStack extends cdk.Stack {
         DYNAMODB_TABLE_NAME: speechProcessingTable.tableName,
         AUDIO_BUCKET_NAME: audioStorageBucket.bucketName,
       },
+      bundling: {
+        externalModules: ['aws-sdk'],
+        minify: true,
+        sourceMap: false,
+      },
     });
 
     // Grant permissions to Upload Handler
@@ -188,11 +194,11 @@ export class SpeechToEmailStack extends cdk.Stack {
     audioStorageBucket.grantReadWrite(uploadHandler);
 
     // Email Handler Lambda
-    const emailHandler = new lambda.Function(this, 'EmailHandler', {
+    const emailHandler = new nodejs.NodejsFunction(this, 'EmailHandler', {
       functionName: 'speech-to-email-email-handler',
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset('lambda/email-handler'),
+      entry: 'lambda/email-handler/index.ts',
+      handler: 'handler',
       role: emailHandlerRole,
       timeout: cdk.Duration.seconds(30),
       retryAttempts: 2,
@@ -201,6 +207,11 @@ export class SpeechToEmailStack extends cdk.Stack {
         DYNAMODB_TABLE_NAME: speechProcessingTable.tableName,
         RECIPIENT_EMAIL: 'johannes.koch@gmail.com',
         SENDER_EMAIL: 'noreply@speech-to-email.com', // This needs to be verified in SES
+      },
+      bundling: {
+        externalModules: ['aws-sdk'],
+        minify: true,
+        sourceMap: false,
       },
     });
 
@@ -213,11 +224,11 @@ export class SpeechToEmailStack extends cdk.Stack {
     }));
 
     // Transcription Handler Lambda
-    const transcriptionHandler = new lambda.Function(this, 'TranscriptionHandler', {
+    const transcriptionHandler = new nodejs.NodejsFunction(this, 'TranscriptionHandler', {
       functionName: 'speech-to-email-transcription-handler',
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset('lambda/transcription-handler'),
+      entry: 'lambda/transcription-handler/index.ts',
+      handler: 'handler',
       role: transcriptionHandlerRole,
       timeout: cdk.Duration.seconds(60),
       retryAttempts: 2,
@@ -226,6 +237,11 @@ export class SpeechToEmailStack extends cdk.Stack {
         DYNAMODB_TABLE_NAME: speechProcessingTable.tableName,
         AUDIO_BUCKET_NAME: audioStorageBucket.bucketName,
         EMAIL_HANDLER_FUNCTION_NAME: emailHandler.functionName,
+      },
+      bundling: {
+        externalModules: ['aws-sdk'],
+        minify: true,
+        sourceMap: false,
       },
     });
 
@@ -246,15 +262,20 @@ export class SpeechToEmailStack extends cdk.Stack {
     emailHandler.grantInvoke(transcriptionHandler);
 
     // Presigned URL Handler Lambda
-    const presignedUrlHandler = new lambda.Function(this, 'PresignedUrlHandler', {
+    const presignedUrlHandler = new nodejs.NodejsFunction(this, 'PresignedUrlHandler', {
       functionName: 'speech-to-email-presigned-url-handler',
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset('lambda/presigned-url-handler'),
+      entry: 'lambda/presigned-url-handler/index.ts',
+      handler: 'handler',
       role: presignedUrlHandlerRole,
       timeout: cdk.Duration.seconds(30),
       environment: {
         AUDIO_BUCKET_NAME: audioStorageBucket.bucketName,
+      },
+      bundling: {
+        externalModules: ['aws-sdk'],
+        minify: true,
+        sourceMap: false,
       },
     });
 
@@ -272,9 +293,9 @@ export class SpeechToEmailStack extends cdk.Stack {
         allowOrigins: apigateway.Cors.ALL_ORIGINS,
         allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
         allowHeaders: [
-          'Content-Type', 
-          'X-Amz-Date', 
-          'Authorization', 
+          'Content-Type',
+          'X-Amz-Date',
+          'Authorization',
           'X-Api-Key',
           'X-Amz-Security-Token',
           'X-Amz-User-Agent'
@@ -292,15 +313,20 @@ export class SpeechToEmailStack extends cdk.Stack {
     // WAF association temporarily removed to avoid deployment issues
 
     // Status Handler Lambda
-    const statusHandler = new lambda.Function(this, 'StatusHandler', {
+    const statusHandler = new nodejs.NodejsFunction(this, 'StatusHandler', {
       functionName: 'speech-to-email-status-handler',
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset('lambda/status-handler'),
+      entry: 'lambda/status-handler/index.ts',
+      handler: 'handler',
       role: statusHandlerRole,
       timeout: cdk.Duration.seconds(30),
       environment: {
         DYNAMODB_TABLE_NAME: speechProcessingTable.tableName,
+      },
+      bundling: {
+        externalModules: ['aws-sdk'],
+        minify: true,
+        sourceMap: false,
       },
     });
 
@@ -379,15 +405,20 @@ export class SpeechToEmailStack extends cdk.Stack {
     });
 
     // Lambda function to handle SES notifications
-    const sesNotificationHandler = new lambda.Function(this, 'SESNotificationHandler', {
+    const sesNotificationHandler = new nodejs.NodejsFunction(this, 'SESNotificationHandler', {
       functionName: 'speech-to-email-ses-notification-handler',
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset('lambda/ses-notification-handler'),
+      entry: 'lambda/ses-notification-handler/index.ts',
+      handler: 'handler',
       role: sesNotificationHandlerRole,
       timeout: cdk.Duration.seconds(30),
       environment: {
         DYNAMODB_TABLE_NAME: speechProcessingTable.tableName,
+      },
+      bundling: {
+        externalModules: ['aws-sdk'],
+        minify: true,
+        sourceMap: false,
       },
     });
 
