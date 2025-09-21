@@ -28,24 +28,35 @@ class AudioRecordingService {
   /// Check and request microphone permission
   Future<bool> checkPermission() async {
     try {
+      debugPrint('Checking microphone permission...');
       final status = await Permission.microphone.status;
+      debugPrint('Current permission status: $status');
       
       if (status.isGranted) {
+        debugPrint('Permission already granted');
         return true;
       }
       
-      if (status.isDenied) {
+      if (status.isDenied || status.isRestricted) {
+        debugPrint('Permission denied/restricted, requesting...');
         final result = await Permission.microphone.request();
+        debugPrint('Permission request result: $result');
         return result.isGranted;
       }
       
       if (status.isPermanentlyDenied) {
+        debugPrint('Permission permanently denied, opening settings');
         // Open app settings for user to manually grant permission
         await openAppSettings();
         return false;
       }
       
-      return false;
+      // For any other status, try to request
+      debugPrint('Unknown status, attempting to request permission');
+      final result = await Permission.microphone.request();
+      debugPrint('Permission request result: $result');
+      return result.isGranted;
+      
     } catch (e) {
       debugPrint('Error checking microphone permission: $e');
       return false;

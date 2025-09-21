@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:dio/dio.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../providers/recording_provider.dart';
 import '../services/audio_recording_service.dart';
 import '../services/upload_service.dart';
@@ -42,14 +43,41 @@ class _RecordingScreenState extends State<RecordingScreen> {
   void _requestPermissions() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
+        debugPrint('Starting permission request process...');
+        
+        // First, try the audio service permission check
         final hasPermission = await _audioService.checkPermission();
+        debugPrint('Audio service permission result: $hasPermission');
+        
         if (!hasPermission && mounted) {
-          _showPermissionDialog();
+          // If that didn't work, try a direct permission request
+          debugPrint('Trying direct permission request...');
+          await _requestPermissionDirectly();
         }
       } catch (e) {
         debugPrint('Error requesting permissions: $e');
       }
     });
+  }
+
+  /// Try to request permission directly
+  Future<void> _requestPermissionDirectly() async {
+    try {
+      // Import permission_handler directly
+      final permission = Permission.microphone;
+      final status = await permission.request();
+      
+      debugPrint('Direct permission request result: $status');
+      
+      if (!status.isGranted && mounted) {
+        _showPermissionDialog();
+      }
+    } catch (e) {
+      debugPrint('Error in direct permission request: $e');
+      if (mounted) {
+        _showPermissionDialog();
+      }
+    }
   }
 
   /// Show permission dialog to user
@@ -76,11 +104,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
             TextButton(
               onPressed: () async {
                 Navigator.of(context).pop();
-                final hasPermission = await _audioService.checkPermission();
-                if (!hasPermission && mounted) {
-                  final provider = context.read<RecordingProvider>();
-                  provider.setError('Microphone permission is required. Please grant permission in Settings.');
-                }
+                await _testPermissions();
               },
               child: const Text('Grant Permission'),
             ),
@@ -88,6 +112,45 @@ class _RecordingScreenState extends State<RecordingScreen> {
         );
       },
     );
+  }
+
+  /// Test permissions with detailed logging
+  Future<void> _testPermissions() async {
+    try {
+      debugPrint('=== Testing Permissions ===');
+      
+      // Test 1: Check current status
+      final currentStatus = await Permission.microphone.status;
+      debugPrint('Current status: $currentStatus');
+      
+      // Test 2: Request permission
+      final requestResult = await Permission.microphone.request();
+      debugPrint('Request result: $requestResult');
+      
+      // Test 3: Check status after request
+      final newStatus = await Permission.microphone.status;
+      debugPrint('Status after request: $newStatus');
+      
+      // Test 4: Try audio service check
+      final audioServiceResult = await _audioService.checkPermission();
+      debugPrint('Audio service result: $audioServiceResult');
+      
+      if (mounted) {
+        final provider = context.read<RecordingProvider>();
+        if (requestResult.isGranted || audioServiceResult) {
+          provider.setError('Permission granted! You can now record.');
+        } else {
+          provider.setError('Permission still denied. Status: $newStatus');
+        }
+      }
+      
+    } catch (e) {
+      debugPrint('Error in permission test: $e');
+      if (mounted) {
+        final provider = context.read<RecordingProvider>();
+        provider.setError('Permission test failed: $e');
+      }
+    }
   }
 
   void _setupListeners() {
@@ -247,6 +310,15 @@ class _RecordingScreenState extends State<RecordingScreen> {
       appBar: AppBar(
         title: const Text('HC VfL Speech to Text'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          // Debug button for testing permissions
+          if (kDebugMode)
+            IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: _testPermissions,
+              tooltip: 'Test Permissions',
+            ),
+        ],
       ),
       body: Consumer<RecordingProvider>(
         builder: (context, provider, child) {
