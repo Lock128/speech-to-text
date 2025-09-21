@@ -78,13 +78,20 @@ export const handler = async (
       throw new Error('No transcript file URI found in job result');
     }
 
-    // Parse S3 URI to get bucket and key
+    // Parse S3 URI to get bucket and key (handle both s3:// and https:// formats)
+    let bucketName: string;
+    let objectKey: string;
+
     const s3UriMatch = transcriptFileUri.match(/s3:\/\/([^\/]+)\/(.+)/);
-    if (!s3UriMatch) {
+    const httpsUriMatch = transcriptFileUri.match(/https:\/\/s3\.([^.]+)\.amazonaws\.com\/([^\/]+)\/(.+)/);
+    
+    if (s3UriMatch) {
+      [, bucketName, objectKey] = s3UriMatch;
+    } else if (httpsUriMatch) {
+      [, , bucketName, objectKey] = httpsUriMatch;
+    } else {
       throw new Error('Invalid S3 URI format: ' + transcriptFileUri);
     }
-
-    const [, bucketName, objectKey] = s3UriMatch;
 
     // Download and parse transcription result
     const getObjectCommand = new GetObjectCommand({
