@@ -192,6 +192,15 @@ export class SpeechToEmailStack extends cdk.Stack {
     // Grant permissions to Upload Handler
     speechProcessingTable.grantReadWriteData(uploadHandler);
     audioStorageBucket.grantReadWrite(uploadHandler);
+    uploadHandlerRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'transcribe:StartTranscriptionJob',
+        'transcribe:GetTranscriptionJob',
+        'transcribe:ListTranscriptionJobs',
+      ],
+      resources: ['*'],
+    }));
 
     // Email Handler Lambda
     const emailHandler = new nodejs.NodejsFunction(this, 'EmailHandler', {
