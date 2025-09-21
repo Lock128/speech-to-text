@@ -214,6 +214,7 @@ export class SpeechToEmailStack extends cdk.Stack {
       deadLetterQueue: deadLetterQueue,
       environment: {
         DYNAMODB_TABLE_NAME: speechProcessingTable.tableName,
+        AUDIO_BUCKET_NAME: audioStorageBucket.bucketName,
         RECIPIENT_EMAIL: 'lockhead+hcvflmail@lockhead.info',
         SENDER_EMAIL: 'lockhead+noreply@lockhead.info', // This needs to be verified in SES
       },
@@ -226,6 +227,7 @@ export class SpeechToEmailStack extends cdk.Stack {
 
     // Grant permissions to Email Handler
     speechProcessingTable.grantReadWriteData(emailHandler);
+    audioStorageBucket.grantRead(emailHandler);
     emailHandlerRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: ['ses:SendEmail', 'ses:SendRawEmail'],

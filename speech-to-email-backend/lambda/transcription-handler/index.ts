@@ -19,6 +19,7 @@ interface EmailPayload {
   originalFileName: string;
   timestamp: string;
   recordId: string;
+  audioFileKey: string;
 }
 
 export const handler = async (
@@ -29,14 +30,14 @@ export const handler = async (
 
   try {
     const { TranscriptionJobName, TranscriptionJobStatus } = event.detail;
-    
+
     // Extract record ID from job name (format: speech-to-email-{recordId}-{timestamp})
     const jobNameParts = TranscriptionJobName.split('-');
     if (jobNameParts.length < 4) {
       console.error('Invalid transcription job name format:', TranscriptionJobName);
       return { statusCode: 400, body: 'Invalid job name format' };
     }
-    
+
     const recordId = jobNameParts.slice(3, -1).join('-'); // Handle record IDs with hyphens
     console.log(`Processing transcription result for record: ${recordId}`);
 
@@ -84,7 +85,7 @@ export const handler = async (
 
     const s3UriMatch = transcriptFileUri.match(/s3:\/\/([^\/]+)\/(.+)/);
     const httpsUriMatch = transcriptFileUri.match(/https:\/\/s3\.([^.]+)\.amazonaws\.com\/([^\/]+)\/(.+)/);
-    
+
     if (s3UriMatch) {
       [, bucketName, objectKey] = s3UriMatch;
     } else if (httpsUriMatch) {
@@ -107,9 +108,12 @@ export const handler = async (
     }
 
     const transcriptionResult = JSON.parse(transcriptionData);
+    console.log('Full transcription result:', JSON.stringify(transcriptionResult, null, 2));
+
     const transcriptionText = transcriptionResult.results?.transcripts?.[0]?.transcript || 'No transcription available';
 
-    console.log(`Extracted transcription text: ${transcriptionText.substring(0, 100)}...`);
+    console.log(`Extracted transcription text: "${transcriptionText}"`);
+    console.log(`Transcription text length: ${transcriptionText.length}`);
 
     // Get original record details
     const getItemCommand = new GetItemCommand({
@@ -151,17 +155,23 @@ export const handler = async (
       originalFileName,
       timestamp: createdAt,
       recordId,
+      audioFileKey: recordResult.Item?.audioFileKey?.S || '',
     };
+
+    console.log('Email payload being sent:', JSON.stringify(emailPayload, null, 2));
 
     // Invoke email handler
     const invokeCommand = new InvokeCommand({
       FunctionName: process.env.EMAIL_HANDLER_FUNCTION_NAME,
-      InvocationType: 'Event', // Asynchronous invocation
+      InvocationType: 'RequestResponse', // Synchronous invocation
       Payload: JSON.stringify(emailPayload),
     });
 
-    await lambdaClient.send(invokeCommand);
-    console.log(`Invoked email handler for ${recordId}`);
+    const invokeResult = await lambdaClient.send(invokeCommand);
+    console.log(`Invoked email handler for ${recordId}`, {
+      statusCode: invokeResult.StatusCode,
+      payload: invokeResult.Payload ? Buffer.from(invokeResult.Payload).toString() : 'No payload'
+    });
 
     return {
       statusCode: 200,
@@ -177,7 +187,7 @@ export const handler = async (
       const jobNameParts = jobName.split('-');
       if (jobNameParts.length >= 4) {
         const recordId = jobNameParts.slice(3, -1).join('-');
-        
+
         const updateCommand = new UpdateItemCommand({
           TableName: process.env.DYNAMODB_TABLE_NAME,
           Key: {

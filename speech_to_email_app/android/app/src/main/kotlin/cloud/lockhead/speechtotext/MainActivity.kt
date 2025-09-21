@@ -1,4 +1,4 @@
-package com.example.speech_to_email_app
+package cloud.lockhead.speechtotext
 
 import io.flutter.embedding.android.FlutterActivity
 

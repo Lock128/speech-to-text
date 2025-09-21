@@ -15,7 +15,7 @@ class SpeechToEmailApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (context) => RecordingProvider(),
       child: MaterialApp(
-        title: 'Speech to Email',
+        title: 'HC VfL Speech to Text',
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
             seedColor: Colors.blue,
