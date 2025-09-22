@@ -5,12 +5,14 @@ class ProcessingProgressIndicator extends StatelessWidget {
   final RecordingState state;
   final double uploadProgress;
   final String? transcriptionText;
+  final int retryCount;
 
   const ProcessingProgressIndicator({
     super.key,
     required this.state,
     required this.uploadProgress,
     this.transcriptionText,
+    this.retryCount = 0,
   });
 
   @override
@@ -223,6 +225,36 @@ class ProcessingProgressIndicator extends StatelessWidget {
               fontSize: 12,
             ),
           ),
+          if (retryCount > 0) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade100,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.orange.shade300),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.refresh,
+                    size: 14,
+                    color: Colors.orange.shade700,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Retry attempt $retryCount/5',
+                    style: TextStyle(
+                      color: Colors.orange.shade700,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

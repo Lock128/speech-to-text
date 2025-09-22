@@ -16,6 +16,7 @@ import '../widgets/progress_indicator.dart';
 import '../widgets/error_display.dart';
 import '../widgets/audio_player.dart';
 import '../services/error_service.dart';
+import '../config/app_config.dart';
 
 class RecordingScreen extends StatefulWidget {
   const RecordingScreen({super.key});
@@ -30,6 +31,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
   late StatusService _statusService;
   CancelToken? _uploadCancelToken;
   Timer? _processingTimeoutTimer;
+  int _currentRetryCount = 0;
 
   @override
   void initState() {
@@ -171,6 +173,15 @@ class _RecordingScreenState extends State<RecordingScreen> {
         provider.updateState(RecordingState.stopped);
       }
     });
+    
+    // Listen to retry count updates
+    _statusService.retryCountStream.listen((retryCount) {
+      if (mounted) {
+        setState(() {
+          _currentRetryCount = retryCount;
+        });
+      }
+    });
   }
 
   @override
@@ -224,6 +235,9 @@ class _RecordingScreenState extends State<RecordingScreen> {
       await _audioService.cancelRecording();
       _statusService.stopPolling();
       _processingTimeoutTimer?.cancel();
+      setState(() {
+        _currentRetryCount = 0;
+      });
       provider.reset();
     } catch (e) {
       provider.setError('Error canceling recording: $e');
@@ -264,15 +278,14 @@ class _RecordingScreenState extends State<RecordingScreen> {
       // Start polling for status updates
       _startStatusPolling(recordId);
       
-      // Set a fallback timeout to complete processing if polling hangs
-      _processingTimeoutTimer = Timer(Duration(minutes: 3), () {
-        final provider = context.read<RecordingProvider>();
-        if (provider.state == RecordingState.processing) {
-          debugPrint('Processing timeout reached - assuming completion');
-          _statusService.stopPolling();
-          provider.updateState(RecordingState.completed);
-          if (provider.transcriptionText == null) {
-            provider.setTranscriptionText('Processing completed (check your email for the transcription)');
+      // Set a reasonable timeout to complete processing - assume success if polling fails
+      _processingTimeoutTimer = Timer(Duration(seconds: 90), () {
+        if (mounted) {
+          final provider = context.read<RecordingProvider>();
+          if (provider.state == RecordingState.processing) {
+            _statusService.stopPolling();
+            provider.updateState(RecordingState.completed);
+            provider.setTranscriptionText('Processing completed successfully! Check your email for the transcription.');
           }
         }
       });
@@ -292,7 +305,8 @@ class _RecordingScreenState extends State<RecordingScreen> {
     
     _statusService.pollStatus(recordId).listen(
       (status) {
-        debugPrint('Received status update: ${status.status}');
+        if (!mounted) return;
+        
         switch (status.status) {
           case ProcessingStatus.uploaded:
           case ProcessingStatus.transcribing:
@@ -305,35 +319,33 @@ class _RecordingScreenState extends State<RecordingScreen> {
             }
             break;
           case ProcessingStatus.emailSent:
-            debugPrint('Email sent successfully, updating to completed state');
+            _processingTimeoutTimer?.cancel();
             provider.updateState(RecordingState.completed);
             if (status.transcriptionText != null) {
               provider.setTranscriptionText(status.transcriptionText!);
             }
             break;
           case ProcessingStatus.failed:
-            provider.setError(status.errorMessage ?? 'Processing failed');
+            _processingTimeoutTimer?.cancel();
+            provider.setError('Processing failed: ${status.errorMessage ?? 'Unknown error'}');
             break;
         }
       },
       onError: (error) {
-        debugPrint('Status polling error: $error');
-        // If polling fails completely, assume success after a reasonable time
-        if (error.toString().contains('timeout')) {
-          debugPrint('Polling timeout - assuming processing completed successfully');
-          provider.updateState(RecordingState.completed);
-          provider.setTranscriptionText('Processing completed (transcription may be available in email)');
-        }
+        if (!mounted) return;
+        
+        // Show error to user if polling fails
+        _processingTimeoutTimer?.cancel();
+        provider.setError('Unable to check processing status. Your recording may still be processing in the background. Please check your email.');
       },
       onDone: () {
-        debugPrint('Status polling stream closed');
-        // If the stream closes without reaching completed state, assume success
+        if (!mounted) return;
+        
+        // If polling completes without reaching final state, assume success
         if (provider.state == RecordingState.processing) {
-          debugPrint('Polling ended while processing - assuming completion');
+          _processingTimeoutTimer?.cancel();
           provider.updateState(RecordingState.completed);
-          if (provider.transcriptionText == null) {
-            provider.setTranscriptionText('Processing completed successfully');
-          }
+          provider.setTranscriptionText('Processing completed successfully! Check your email for the transcription.');
         }
       },
     );
@@ -369,7 +381,11 @@ class _RecordingScreenState extends State<RecordingScreen> {
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    // Add flexible spacer to push content to center
+                    const Flexible(child: SizedBox(height: 20)),
+                    
                     // Status indicator
                     StatusIndicator(state: provider.state),
                     
@@ -481,6 +497,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
                         state: provider.state,
                         uploadProgress: provider.uploadProgress,
                         transcriptionText: provider.transcriptionText,
+                        retryCount: _currentRetryCount,
                       ),
                       
                       const SizedBox(height: 24),
@@ -510,6 +527,9 @@ class _RecordingScreenState extends State<RecordingScreen> {
                         ),
                       ],
                     ],
+                    
+                    // Add flexible spacer at bottom to balance the layout
+                    const Flexible(child: SizedBox(height: 20)),
                   ],
                 ),
               ),

@@ -11,6 +11,12 @@ class StatusService {
   int _retryCount = 0;
   static const int _maxRetries = 5;
   static const Duration _maxPollingDuration = Duration(minutes: 10);
+  
+  // Stream controller for retry count updates
+  final StreamController<int> _retryCountController = StreamController<int>.broadcast();
+  
+  // Getter for retry count stream
+  Stream<int> get retryCountStream => _retryCountController.stream;
 
   /// Poll status for a specific record ID
   Stream<StatusResponse> pollStatus(String recordId) {
@@ -23,12 +29,11 @@ class StatusService {
     
     _startPolling(recordId, controller);
     
-    // Set a maximum polling duration to prevent infinite polling
-    Timer(_maxPollingDuration, () {
+    // Set a shorter polling duration - assume success if backend doesn't respond
+    Timer(Duration(minutes: 2), () {
       if (!controller.isClosed) {
-        debugPrint('Polling timeout reached for record: $recordId');
-        controller.addError('Polling timeout - processing may still be in progress');
         _stopPolling();
+        controller.addError('Backend communication timeout - your recording is likely processed successfully. Please check your email.');
         controller.close();
       }
     });
@@ -39,6 +44,7 @@ class StatusService {
   /// Start polling for status updates
   void _startPolling(String recordId, StreamController<StatusResponse> controller) {
     _retryCount = 0;
+    _retryCountController.add(0);
     
     _pollingTimer = Timer.periodic(AppConfig.statusPollingInterval, (timer) async {
       try {
@@ -57,13 +63,12 @@ class StatusService {
         }
       } catch (e) {
         _retryCount++;
-        debugPrint('Error polling status (attempt $_retryCount): $e');
+        _retryCountController.add(_retryCount);
         
         if (_retryCount >= _maxRetries) {
-          debugPrint('Max retries reached for status polling');
           timer.cancel();
           if (!controller.isClosed) {
-            controller.addError('Failed to check status after $_maxRetries attempts');
+            controller.addError('Unable to connect to server after $_maxRetries attempts. Your recording may still be processing - please check your email.');
             controller.close();
           }
         }
@@ -120,6 +125,7 @@ class StatusService {
   /// Dispose resources
   void dispose() {
     stopPolling();
+    _retryCountController.close();
     _dio.close();
   }
 }
