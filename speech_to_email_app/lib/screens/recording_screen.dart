@@ -467,8 +467,8 @@ class _RecordingScreenState extends State<RecordingScreen> {
                                 onPressed: () {
                                   provider.reset();
                                 },
-                                icon: const Icon(Icons.mic),
-                                label: const Text('Record New'),
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Start Over'),
                                 style: OutlinedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                                 ),
@@ -476,7 +476,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
                               if (provider.error!.isRetryable) ...[
                                 ElevatedButton.icon(
                                   onPressed: _handleErrorRetry,
-                                  icon: const Icon(Icons.refresh),
+                                  icon: const Icon(Icons.replay),
                                   label: const Text('Try Again'),
                                   style: ElevatedButton.styleFrom(
                                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
