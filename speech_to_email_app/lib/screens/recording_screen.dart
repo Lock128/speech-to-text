@@ -383,6 +383,15 @@ class _RecordingScreenState extends State<RecordingScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
+                        // Logo
+                        Image.asset(
+                          'images/cropped-logo-maenner-1-150x113.webp',
+                          height: 80,
+                          fit: BoxFit.contain,
+                        ),
+                        
+                        const SizedBox(height: 24),
+                        
                         // Status indicator
                         StatusIndicator(state: provider.state),
                         
