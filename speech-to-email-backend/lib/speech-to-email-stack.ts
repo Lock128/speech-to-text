@@ -215,7 +215,7 @@ export class SpeechToEmailStack extends cdk.Stack {
       environment: {
         DYNAMODB_TABLE_NAME: speechProcessingTable.tableName,
         AUDIO_BUCKET_NAME: audioStorageBucket.bucketName,
-        RECIPIENT_EMAIL: 'lockhead+hcvflmail@lockhead.info',
+        RECIPIENT_EMAIL: 'lockhead+hcvflmail@lockhead.info,Marc.schaeffauer@gmx.de,der_michel@gmx.de', // Marc.schaeffauer@gmx.de
         SENDER_EMAIL: 'lockhead+noreply@lockhead.info', // This needs to be verified in SES
       },
       bundling: {

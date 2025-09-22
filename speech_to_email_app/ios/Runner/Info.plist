@@ -48,6 +48,18 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app needs access to microphone to record speech messages.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>This app needs access to speech recognition to convert your speech to text.</string>	
+	<string>This app needs access to speech recognition to convert your speech to text.</string>
+	<key>CFBundleIcons</key>
+	<dict>
+		<key>CFBundlePrimaryIcon</key>
+		<dict>
+			<key>CFBundleIconFiles</key>
+			<array>
+				<string>AppIcon</string>
+			</array>
+			<key>CFBundleIconName</key>
+			<string>AppIcon</string>
+		</dict>
+	</dict>
 </dict>
 </plist>
