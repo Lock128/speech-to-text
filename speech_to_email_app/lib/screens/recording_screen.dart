@@ -370,169 +370,166 @@ class _RecordingScreenState extends State<RecordingScreen> {
       body: Consumer<RecordingProvider>(
         builder: (context, provider, child) {
           return SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: MediaQuery.of(context).size.height - 
-                    MediaQuery.of(context).padding.top - 
-                    MediaQuery.of(context).padding.bottom - 
-                    kToolbarHeight - 48, // Account for AppBar and padding
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Add flexible spacer to push content to center
-                    const Flexible(child: SizedBox(height: 20)),
-                    
-                    // Status indicator
-                    StatusIndicator(state: provider.state),
-                    
-                    const SizedBox(height: 32),
-                    
-                    // Recording timer
-                    RecordingTimer(
-                      duration: provider.recordingDuration,
-                      isRecording: provider.isRecording,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.all(24.0),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight - 48, // Account for padding
                     ),
-                    
-                    const SizedBox(height: 48),
-                    
-                    // Recording button
-                    RecordingButton(
-                      state: provider.state,
-                      onStartRecording: _startRecording,
-                      onStopRecording: _stopRecording,
-                      onCancelRecording: _cancelRecording,
-                      onUploadRecording: _uploadRecording,
-                    ),
-                    
-                    const SizedBox(height: 32),
-                    
-                    // Audio review section
-                    if (provider.isReviewing && provider.recordingPath != null) ...[
-                      AudioPlayerWidget(
-                        audioPath: provider.recordingPath!,
-                        duration: provider.recordingDuration,
-                      ),
-                      const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: () {
-                              provider.reset();
-                            },
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Record New'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            ),
-                          ),
-                          ElevatedButton.icon(
-                            onPressed: _uploadRecording,
-                            icon: const Icon(Icons.cloud_upload),
-                            label: const Text('Upload & Send'),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                    
-                    // Error display with audio player if recording exists
-                    if (provider.hasError && provider.error != null) ...[
-                      ErrorDisplay(
-                        error: provider.error!,
-                        onRetry: provider.error!.isRetryable ? _handleErrorRetry : null,
-                        onDismiss: () => provider.clearError(),
-                        showDetails: true,
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // Show audio player even during error if recording exists
-                      if (provider.recordingPath != null) ...[
-                        AudioPlayerWidget(
-                          audioPath: provider.recordingPath!,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Status indicator
+                        StatusIndicator(state: provider.state),
+                        
+                        const SizedBox(height: 32),
+                        
+                        // Recording timer
+                        RecordingTimer(
                           duration: provider.recordingDuration,
+                          isRecording: provider.isRecording,
                         ),
-                        const SizedBox(height: 16),
-                      ],
-                      
-                      // Action buttons for error state
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: () {
-                              provider.reset();
-                            },
-                            icon: const Icon(Icons.mic),
-                            label: const Text('Record New'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                            ),
+                        
+                        const SizedBox(height: 48),
+                        
+                        // Recording button
+                        RecordingButton(
+                          state: provider.state,
+                          onStartRecording: _startRecording,
+                          onStopRecording: _stopRecording,
+                          onCancelRecording: _cancelRecording,
+                          onUploadRecording: _uploadRecording,
+                        ),
+                        
+                        const SizedBox(height: 32),
+                        
+                        // Audio review section
+                        if (provider.isReviewing && provider.recordingPath != null) ...[
+                          AudioPlayerWidget(
+                            audioPath: provider.recordingPath!,
+                            duration: provider.recordingDuration,
                           ),
-                          if (provider.error!.isRetryable) ...[
+                          const SizedBox(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  provider.reset();
+                                },
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Record New'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                ),
+                              ),
+                              ElevatedButton.icon(
+                                onPressed: _uploadRecording,
+                                icon: const Icon(Icons.cloud_upload),
+                                label: const Text('Upload & Send'),
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        
+                        // Error display with audio player if recording exists
+                        if (provider.hasError && provider.error != null) ...[
+                          ErrorDisplay(
+                            error: provider.error!,
+                            onRetry: provider.error!.isRetryable ? _handleErrorRetry : null,
+                            onDismiss: () => provider.clearError(),
+                            showDetails: true,
+                          ),
+                          const SizedBox(height: 16),
+                          
+                          // Show audio player even during error if recording exists
+                          if (provider.recordingPath != null) ...[
+                            AudioPlayerWidget(
+                              audioPath: provider.recordingPath!,
+                              duration: provider.recordingDuration,
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                          
+                          // Action buttons for error state
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  provider.reset();
+                                },
+                                icon: const Icon(Icons.mic),
+                                label: const Text('Record New'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                ),
+                              ),
+                              if (provider.error!.isRetryable) ...[
+                                ElevatedButton.icon(
+                                  onPressed: _handleErrorRetry,
+                                  icon: const Icon(Icons.refresh),
+                                  label: const Text('Try Again'),
+                                  style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        
+                        // Progress indicator for upload/processing/completion
+                        if (provider.isUploading || provider.isProcessing || provider.isCompleted) ...[
+                          ProcessingProgressIndicator(
+                            state: provider.state,
+                            uploadProgress: provider.uploadProgress,
+                            transcriptionText: provider.transcriptionText,
+                            retryCount: _currentRetryCount,
+                          ),
+                          
+                          const SizedBox(height: 24),
+                          
+                          // Show "Record New" button during processing and "Record Another" when completed
+                          if (provider.isProcessing) ...[
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                // Cancel current processing and reset
+                                _statusService.stopPolling();
+                                provider.reset();
+                              },
+                              icon: const Icon(Icons.mic),
+                              label: const Text('Record New'),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                              ),
+                            ),
+                          ] else if (provider.isCompleted) ...[
                             ElevatedButton.icon(
-                              onPressed: _handleErrorRetry,
-                              icon: const Icon(Icons.refresh),
-                              label: const Text('Try Again'),
+                              onPressed: () => provider.reset(),
+                              icon: const Icon(Icons.mic),
+                              label: const Text('Record Another'),
                               style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                               ),
                             ),
                           ],
                         ],
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                    
-                    // Progress indicator for upload/processing/completion
-                    if (provider.isUploading || provider.isProcessing || provider.isCompleted) ...[
-                      ProcessingProgressIndicator(
-                        state: provider.state,
-                        uploadProgress: provider.uploadProgress,
-                        transcriptionText: provider.transcriptionText,
-                        retryCount: _currentRetryCount,
-                      ),
-                      
-                      const SizedBox(height: 24),
-                      
-                      // Show "Record New" button during processing and "Record Another" when completed
-                      if (provider.isProcessing) ...[
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            // Cancel current processing and reset
-                            _statusService.stopPolling();
-                            provider.reset();
-                          },
-                          icon: const Icon(Icons.mic),
-                          label: const Text('Record New'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                          ),
-                        ),
-                      ] else if (provider.isCompleted) ...[
-                        ElevatedButton.icon(
-                          onPressed: () => provider.reset(),
-                          icon: const Icon(Icons.mic),
-                          label: const Text('Record Another'),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                          ),
-                        ),
                       ],
-                    ],
-                    
-                    // Add flexible spacer at bottom to balance the layout
-                    const Flexible(child: SizedBox(height: 20)),
-                  ],
-                ),
-              ),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           );
         },
