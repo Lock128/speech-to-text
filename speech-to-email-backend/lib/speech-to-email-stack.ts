@@ -263,6 +263,7 @@ export class SpeechToEmailStack extends cdk.Stack {
       ],
       resources: [
         `arn:aws:bedrock:${this.region}::foundation-model/*`,
+        `arn:aws:bedrock:${this.region}:${this.account}:inference-profile/*`,
       ],
     }));
 
