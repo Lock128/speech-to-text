@@ -71,7 +71,8 @@ Bitte erstelle daraus einen vollständigen Zeitungsartikel auf Deutsch.
 `;
 
 const BEDROCK_CONFIG = {
-    modelId: 'anthropic.claude-3-7-sonnet-20250219-v1',
+    //modelId: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+    modelId: 'arn:aws:bedrock:eu-central-1:345856669986:inference-profile/eu.anthropic.claude-3-7-sonnet-20250219-v1:0',
     maxTokens: 4000,
     temperature: 0.2, // Lower temperature for more consistent, professional output
     topP: 0.9
