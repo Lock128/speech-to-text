@@ -149,8 +149,8 @@ export const handler = async (
     await dynamoClient.send(updateCommand);
     console.log(`Updated record with transcription text for ${recordId}`);
 
-    // Prepare email payload
-    const emailPayload: EmailPayload = {
+    // Prepare article enhancement payload
+    const articleEnhancementPayload = {
       transcriptionText,
       originalFileName,
       timestamp: createdAt,
@@ -158,17 +158,17 @@ export const handler = async (
       audioFileKey: recordResult.Item?.audioFileKey?.S || '',
     };
 
-    console.log('Email payload being sent:', JSON.stringify(emailPayload, null, 2));
+    console.log('Article enhancement payload being sent:', JSON.stringify(articleEnhancementPayload, null, 2));
 
-    // Invoke email handler
+    // Invoke article enhancement handler
     const invokeCommand = new InvokeCommand({
-      FunctionName: process.env.EMAIL_HANDLER_FUNCTION_NAME,
+      FunctionName: process.env.ARTICLE_ENHANCEMENT_HANDLER_FUNCTION_NAME,
       InvocationType: 'RequestResponse', // Synchronous invocation
-      Payload: JSON.stringify(emailPayload),
+      Payload: JSON.stringify(articleEnhancementPayload),
     });
 
     const invokeResult = await lambdaClient.send(invokeCommand);
-    console.log(`Invoked email handler for ${recordId}`, {
+    console.log(`Invoked article enhancement handler for ${recordId}`, {
       statusCode: invokeResult.StatusCode,
       payload: invokeResult.Payload ? Buffer.from(invokeResult.Payload).toString() : 'No payload'
     });

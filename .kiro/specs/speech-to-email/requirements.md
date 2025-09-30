@@ -96,6 +96,19 @@ This feature enables users to record speech messages through a Flutter mobile an
 
 ### Requirement 8
 
+**User Story:** As a user, I want the transcribed text to be enhanced using AI to create a well-formatted German newspaper article, so that the content is professional and suitable for publication.
+
+#### Acceptance Criteria
+
+1. WHEN transcription is complete THEN the system SHALL send the transcribed text to AWS Bedrock using Claude Sonnet 4
+2. WHEN calling Bedrock THEN the system SHALL use a German prompt to transform the text into a newspaper article format
+3. WHEN the AI processing is complete THEN the system SHALL use the enhanced article text for email delivery instead of raw transcription
+4. IF Bedrock processing fails THEN the system SHALL fall back to sending the original transcribed text
+5. WHEN processing with Bedrock THEN the system SHALL include appropriate German newspaper formatting (headline, paragraphs, etc.)
+6. WHEN using Bedrock THEN the system SHALL handle rate limits and implement appropriate retry logic
+
+### Requirement 9
+
 **User Story:** As a user, I want my data to be handled securely and privately, so that my speech recordings and personal information are protected.
 
 #### Acceptance Criteria

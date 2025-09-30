@@ -152,6 +152,14 @@ export class SpeechToEmailStack extends cdk.Stack {
       ],
     });
 
+    // Article Enhancement Handler Role
+    const articleEnhancementHandlerRole = new iam.Role(this, 'ArticleEnhancementHandlerRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    });
+
     // Email Handler Role
     const emailHandlerRole = new iam.Role(this, 'EmailHandlerRole', {
       assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
@@ -202,6 +210,26 @@ export class SpeechToEmailStack extends cdk.Stack {
       resources: ['*'],
     }));
 
+    // Article Enhancement Handler Lambda
+    const articleEnhancementHandler = new nodejs.NodejsFunction(this, 'ArticleEnhancementHandler', {
+      functionName: 'speech-to-email-article-enhancement-handler',
+      runtime: lambda.Runtime.NODEJS_18_X,
+      entry: 'lambda/article-enhancement-handler/index.ts',
+      handler: 'handler',
+      role: articleEnhancementHandlerRole,
+      timeout: cdk.Duration.seconds(120), // Longer timeout for Bedrock calls
+      retryAttempts: 2,
+      deadLetterQueue: deadLetterQueue,
+      environment: {
+        DYNAMODB_TABLE_NAME: speechProcessingTable.tableName,
+      },
+      bundling: {
+        externalModules: ['aws-sdk'],
+        minify: true,
+        sourceMap: false,
+      },
+    });
+
     // Email Handler Lambda
     const emailHandler = new nodejs.NodejsFunction(this, 'EmailHandler', {
       functionName: 'speech-to-email-email-handler',
@@ -225,6 +253,19 @@ export class SpeechToEmailStack extends cdk.Stack {
       },
     });
 
+    // Grant permissions to Article Enhancement Handler
+    speechProcessingTable.grantReadWriteData(articleEnhancementHandler);
+    articleEnhancementHandlerRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'bedrock:InvokeModel',
+        'bedrock:InvokeModelWithResponseStream',
+      ],
+      resources: [
+        `arn:aws:bedrock:${this.region}::foundation-model/*`,
+      ],
+    }));
+
     // Grant permissions to Email Handler
     speechProcessingTable.grantReadWriteData(emailHandler);
     audioStorageBucket.grantRead(emailHandler);
@@ -247,7 +288,7 @@ export class SpeechToEmailStack extends cdk.Stack {
       environment: {
         DYNAMODB_TABLE_NAME: speechProcessingTable.tableName,
         AUDIO_BUCKET_NAME: audioStorageBucket.bucketName,
-        EMAIL_HANDLER_FUNCTION_NAME: emailHandler.functionName,
+        ARTICLE_ENHANCEMENT_HANDLER_FUNCTION_NAME: articleEnhancementHandler.functionName,
       },
       bundling: {
         externalModules: ['aws-sdk'],
@@ -269,8 +310,12 @@ export class SpeechToEmailStack extends cdk.Stack {
       resources: ['*'],
     }));
 
-    // Grant Lambda permission to invoke email handler
-    emailHandler.grantInvoke(transcriptionHandler);
+    // Grant Lambda permissions to invoke other handlers
+    articleEnhancementHandler.grantInvoke(transcriptionHandler);
+    emailHandler.grantInvoke(articleEnhancementHandler);
+
+    // Update article enhancement handler environment with email handler function name
+    articleEnhancementHandler.addEnvironment('EMAIL_HANDLER_FUNCTION_NAME', emailHandler.functionName);
 
     // Presigned URL Handler Lambda
     const presignedUrlHandler = new nodejs.NodejsFunction(this, 'PresignedUrlHandler', {
@@ -487,6 +532,11 @@ export class SpeechToEmailStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'TranscriptionHandlerArn', {
       value: transcriptionHandler.functionArn,
       description: 'ARN of the Transcription Handler Lambda function',
+    });
+
+    new cdk.CfnOutput(this, 'ArticleEnhancementHandlerArn', {
+      value: articleEnhancementHandler.functionArn,
+      description: 'ARN of the Article Enhancement Handler Lambda function',
     });
 
     new cdk.CfnOutput(this, 'EmailHandlerArn', {

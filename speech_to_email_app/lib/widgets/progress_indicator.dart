@@ -45,16 +45,22 @@ class ProcessingProgressIndicator extends StatelessWidget {
         isActive: _isStepActive(1),
       ),
       _ProgressStep(
-        title: 'Processing',
+        title: 'Transcribing',
         icon: Icons.psychology,
         isCompleted: _isStepCompleted(2),
         isActive: _isStepActive(2),
       ),
       _ProgressStep(
-        title: 'Email Sent',
-        icon: Icons.email,
+        title: 'AI Article',
+        icon: Icons.auto_awesome,
         isCompleted: _isStepCompleted(3),
         isActive: _isStepActive(3),
+      ),
+      _ProgressStep(
+        title: 'Email Sent',
+        icon: Icons.email,
+        isCompleted: _isStepCompleted(4),
+        isActive: _isStepActive(4),
       ),
     ];
 
@@ -208,7 +214,7 @@ class ProcessingProgressIndicator extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Converting speech to text...',
+                  'Processing with AI...',
                   style: TextStyle(
                     color: Colors.purple.shade700,
                     fontWeight: FontWeight.w500,
@@ -219,7 +225,7 @@ class ProcessingProgressIndicator extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'This usually takes 30-60 seconds',
+            'Converting speech to text and creating newspaper article',
             style: TextStyle(
               color: Colors.purple.shade600,
               fontSize: 12,
@@ -329,9 +335,11 @@ class ProcessingProgressIndicator extends StatelessWidget {
                state != RecordingState.recording && 
                state != RecordingState.stopped && 
                state != RecordingState.uploading;
-      case 2: // Processing
+      case 2: // Transcribing
         return state == RecordingState.completed;
-      case 3: // Email Sent
+      case 3: // AI Article
+        return state == RecordingState.completed;
+      case 4: // Email Sent
         return state == RecordingState.completed;
       default:
         return false;
@@ -344,9 +352,11 @@ class ProcessingProgressIndicator extends StatelessWidget {
         return state == RecordingState.recording;
       case 1: // Uploading
         return state == RecordingState.uploading;
-      case 2: // Processing
+      case 2: // Transcribing
         return state == RecordingState.processing;
-      case 3: // Email Sent
+      case 3: // AI Article
+        return state == RecordingState.processing;
+      case 4: // Email Sent
         return state == RecordingState.completed;
       default:
         return false;

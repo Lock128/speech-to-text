@@ -51,6 +51,9 @@ export const handler = async (
     // Parse DynamoDB item
     const status = result.Item.status?.S || 'unknown';
     const transcriptionText = result.Item.transcriptionText?.S;
+    const enhancedArticleText = result.Item.enhancedArticleText?.S;
+    const bedrockProcessedAt = result.Item.bedrockProcessedAt?.S;
+    const bedrockTokenUsage = result.Item.bedrockTokenUsage?.S;
     const errorMessage = result.Item.errorMessage?.S;
     const createdAt = result.Item.createdAt?.S;
     const updatedAt = result.Item.updatedAt?.S;
@@ -58,28 +61,49 @@ export const handler = async (
 
     // Calculate progress based on status
     let progress = 0;
+    let statusDescription = '';
+    
     switch (status) {
       case 'uploaded':
-        progress = 0.2;
+        progress = 0.15;
+        statusDescription = 'Audio file uploaded, starting transcription...';
         break;
       case 'transcribing':
-        progress = 0.5;
+        progress = 0.4;
+        statusDescription = 'Converting speech to text...';
         break;
       case 'transcription_completed':
+        progress = 0.6;
+        statusDescription = 'Transcription complete, enhancing article...';
+        break;
+      case 'enhancing_article':
         progress = 0.8;
+        statusDescription = 'Creating newspaper article with AI...';
+        break;
+      case 'article_enhanced':
+        progress = 0.9;
+        statusDescription = 'Article enhanced, sending email...';
         break;
       case 'email_sent':
         progress = 1.0;
+        statusDescription = 'Process complete! Email sent successfully.';
         break;
       case 'failed':
         progress = 0;
+        statusDescription = 'Processing failed. Please try again.';
         break;
+      default:
+        statusDescription = 'Unknown status';
     }
 
     const response = {
       recordId,
       status,
+      statusDescription,
       transcriptionText,
+      enhancedArticleText,
+      bedrockProcessedAt,
+      bedrockTokenUsage: bedrockTokenUsage ? JSON.parse(bedrockTokenUsage) : undefined,
       errorMessage,
       progress,
       createdAt,

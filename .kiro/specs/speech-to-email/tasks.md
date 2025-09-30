@@ -43,21 +43,35 @@
     - Create unit tests for transcription handler
     - _Requirements: 3.1, 3.2, 3.4_
 
-  - [x] 3.3 Create Email Handler Lambda function
-    - Write Lambda function for SES email delivery
-    - Implement email formatting with transcribed text and metadata
-    - Add retry logic for failed email deliveries
-    - Create unit tests for email handler functionality
-    - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.6_
+  - [x] 3.3 Create Article Enhancement Handler Lambda function
+    - Write Lambda function to integrate with AWS Bedrock Claude Sonnet 4
+    - Implement German newspaper article prompt and text transformation
+    - Add error handling and fallback to original transcription
+    - Create unit tests for Bedrock integration functionality
+    - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.6_
 
-- [x] 4. Configure AWS services integration
+  - [x] 3.4 Update Email Handler Lambda function
+    - Modify Lambda function to use enhanced article text instead of raw transcription
+    - Implement email formatting with AI-enhanced content and metadata
+    - Add retry logic for failed email deliveries
+    - Update unit tests for enhanced email handler functionality
+    - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.6, 8.3_
+
+- [ ] 4. Configure AWS services integration
   - [x] 4.1 Set up Amazon Transcribe service configuration
     - Configure Transcribe service settings and supported formats
     - Implement EventBridge rules for transcription completion events
     - Add error handling for transcription failures
     - _Requirements: 3.1, 3.3, 3.5_
 
-  - [x] 4.2 Configure Amazon SES for email delivery
+  - [x] 4.2 Configure AWS Bedrock access and permissions
+    - Set up IAM roles and policies for Bedrock access
+    - Configure Claude Sonnet 4 model access and permissions
+    - Implement rate limiting and cost monitoring for Bedrock usage
+    - Add error handling for Bedrock service failures
+    - _Requirements: 8.1, 8.4, 8.6, 9.4_
+
+  - [x] 4.3 Configure Amazon SES for email delivery
     - Set up SES configuration for sending emails
     - Verify sender email address (johannes.koch@gmail.com as recipient)
     - Configure bounce and complaint handling
@@ -101,19 +115,19 @@
     - Create integration tests for record-to-upload flow
     - _Requirements: 2.1, 2.5, 1.5_
 
-- [x] 7. Implement status tracking and user feedback
-  - [x] 7.1 Create status polling service
-    - Implement API endpoint for checking processing status
-    - Create Flutter service for polling transcription progress
-    - Add real-time status updates in the UI
-    - Write tests for status polling functionality
-    - _Requirements: 3.4, 4.5_
+- [ ] 7. Implement status tracking and user feedback
+  - [x] 7.1 Update status polling service for article enhancement
+    - Update API endpoint to include article enhancement status
+    - Modify Flutter service for polling article processing progress
+    - Add real-time status updates for Bedrock processing in the UI
+    - Update tests for enhanced status polling functionality
+    - _Requirements: 3.4, 4.5, 8.3_
 
-  - [x] 7.2 Build status tracking UI components
-    - Create progress indicators for transcription and email stages
-    - Implement notification system for completion/errors
-    - Add history view for previous recordings and their status
-    - _Requirements: 2.5, 3.4, 4.5_
+  - [x] 7.2 Update status tracking UI components for article enhancement
+    - Update progress indicators to include article enhancement stage
+    - Modify notification system for Bedrock processing completion/errors
+    - Update history view to show enhanced article text
+    - _Requirements: 2.5, 3.4, 4.5, 8.3_
 
 - [x] 8. Add comprehensive error handling
   - [x] 8.1 Implement client-side error handling
@@ -123,11 +137,12 @@
     - Write tests for error scenarios and recovery flows
     - _Requirements: 1.6, 2.4, 5.6_
 
-  - [x] 8.2 Enhance server-side error handling
-    - Implement dead letter queues for failed Lambda executions
-    - Add CloudWatch alarms for error rate monitoring
-    - Create structured logging for debugging and troubleshooting
-    - _Requirements: 3.3, 4.4_
+  - [x] 8.2 Enhance server-side error handling for Bedrock integration
+    - Update dead letter queues for failed Bedrock processing
+    - Add CloudWatch alarms for Bedrock error rate and cost monitoring
+    - Create structured logging for Bedrock API calls and troubleshooting
+    - Implement fallback mechanisms when Bedrock is unavailable
+    - _Requirements: 3.3, 4.4, 8.4, 8.6_
 
 - [x] 9. Set up GitHub Actions CI/CD pipeline
   - [x] 9.1 Create Flutter app deployment workflow

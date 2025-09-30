@@ -9,7 +9,8 @@ const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION });
 const s3Client = new S3Client({ region: process.env.AWS_REGION });
 
 interface EmailPayload {
-  transcriptionText: string;
+  enhancedArticleText: string;
+  originalTranscription: string;
   originalFileName: string;
   timestamp: string;
   recordId: string;
@@ -24,31 +25,33 @@ export const handler = async (event: any, context: Context) => {
   // Handle both direct invocation and async invocation formats
   let emailPayload: EmailPayload;
 
-  if (event.transcriptionText !== undefined) {
+  if (event.enhancedArticleText !== undefined) {
     // Direct payload format
     emailPayload = event as EmailPayload;
   } else {
     // This shouldn't happen, but let's log it
-    console.error('Unexpected event format - no transcriptionText found');
+    console.error('Unexpected event format - no enhancedArticleText found');
     console.error('Full event:', JSON.stringify(event, null, 2));
-    throw new Error('Invalid event format - missing transcriptionText');
+    throw new Error('Invalid event format - missing enhancedArticleText');
   }
 
-  const { transcriptionText, originalFileName, timestamp, recordId, audioFileKey } = emailPayload;
+  const { enhancedArticleText, originalTranscription, originalFileName, timestamp, recordId, audioFileKey } = emailPayload;
 
-  console.log('Received transcription text:', `"${transcriptionText}"`);
-  console.log('Transcription text length:', transcriptionText?.length || 0);
+  console.log('Received enhanced article text:', `"${enhancedArticleText}"`);
+  console.log('Enhanced article text length:', enhancedArticleText?.length || 0);
   console.log('Audio file key:', audioFileKey);
   const maxRetries = 3;
   let retryCount = 0;
 
   while (retryCount < maxRetries) {
     try {
-      // Debug: Check transcription text
-      console.log('About to format email with transcription:', {
-        hasTranscriptionText: !!transcriptionText,
-        transcriptionLength: transcriptionText?.length || 0,
-        transcriptionPreview: transcriptionText?.substring(0, 50) || 'EMPTY'
+      // Debug: Check enhanced article text
+      console.log('About to format email with enhanced article:', {
+        hasEnhancedArticleText: !!enhancedArticleText,
+        enhancedArticleLength: enhancedArticleText?.length || 0,
+        enhancedArticlePreview: enhancedArticleText?.substring(0, 50) || 'EMPTY',
+        hasOriginalTranscription: !!originalTranscription,
+        originalTranscriptionLength: originalTranscription?.length || 0
       });
 
       // Generate presigned URL for audio file (valid for 7 days)
@@ -67,37 +70,48 @@ export const handler = async (event: any, context: Context) => {
       }
 
       // Format the email content
-      const subject = `Speech to Email: ${originalFileName} - ${new Date(timestamp).toLocaleString()}`;
+      const subject = `Zeitungsartikel: ${originalFileName} - ${new Date(timestamp).toLocaleString()}`;
 
       const htmlBody = `
         <html>
           <head>
             <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .header { background-color: #f4f4f4; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
+              body { font-family: 'Georgia', 'Times New Roman', serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; }
+              .header { background-color: #f4f4f4; padding: 20px; border-radius: 5px; margin-bottom: 20px; text-align: center; }
               .content { padding: 20px; }
-              .transcription { background-color: #f9f9f9; padding: 15px; border-left: 4px solid #007bff; margin: 20px 0; }
+              .article { background-color: #fff; padding: 20px; border: 1px solid #ddd; margin: 20px 0; }
+              .original-transcription { background-color: #f9f9f9; padding: 15px; border-left: 4px solid #007bff; margin: 20px 0; font-size: 0.9em; }
               .footer { font-size: 12px; color: #666; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
-              .metadata { background-color: #e9ecef; padding: 10px; border-radius: 3px; margin-bottom: 20px; }
+              .metadata { background-color: #e9ecef; padding: 10px; border-radius: 3px; margin-bottom: 20px; font-size: 0.9em; }
+              .article h1, .article h2, .article h3 { color: #2c3e50; }
+              .article p { margin-bottom: 1em; text-align: justify; }
             </style>
           </head>
           <body>
             <div class="header">
-              <h2>🎤 Speech to Email Transcription</h2>
+              <h2>📰 KI-generierter Blogeintrag</h2>
+              <p style="margin: 0; font-style: italic;">Automatisch erstellt aus Sprachaufnahme</p>
             </div>
             
             <div class="content">
               <div class="metadata">
-                <strong>File:</strong> ${originalFileName}<br>
-                <strong>Recorded:</strong> ${new Date(timestamp).toLocaleString()}<br>
-                <strong>Record ID:</strong> ${recordId}<br>
-                <strong>Processed:</strong> ${new Date().toLocaleString()}
+                <strong>Datei:</strong> ${originalFileName}<br>
+                <strong>Aufgenommen:</strong> ${new Date(timestamp).toLocaleString()}<br>
+                <strong>Blog-ID:</strong> ${recordId}<br>
+                <strong>Verarbeitet:</strong> ${new Date().toLocaleString()}
               </div>
               
-              <h3>Transcription:</h3>
-              <div class="transcription">
-                ${transcriptionText ? transcriptionText.replace(/</g, '&lt;').replace(/>/g, '&gt;') : 'No transcription available'}
+              <div class="article">
+                ${enhancedArticleText || 'Kein Blog verfügbar'}
               </div>
+              
+              <details>
+                <summary style="cursor: pointer; font-weight: bold; margin: 20px 0 10px 0;">📝 Original-Transkription anzeigen</summary>
+                <div class="original-transcription">
+                  <strong>Original-Transkription:</strong><br>
+                  ${originalTranscription ? originalTranscription.replace(/</g, '&lt;').replace(/>/g, '&gt;') : 'Keine Transkription verfügbar'}
+                </div>
+              </details>
               
               ${audioFileUrl ? `
               <h3>Audio File:</h3>
@@ -112,8 +126,8 @@ export const handler = async (event: any, context: Context) => {
               ` : ''}
               
               <div class="footer">
-                <p>This email was automatically generated by the Speech to Email application.</p>
-                <p>If you have any questions or issues, please contact your system administrator.</p>
+                <p>Diese E-Mail wurde automatisch von der Speech-to-Email-Anwendung mit KI-Unterstützung generiert.</p>
+                <p>Bei Fragen oder Problemen wenden Sie sich bitte an Ihren Systemadministrator.</p>
               </div>
             </div>
           </body>
@@ -121,24 +135,27 @@ export const handler = async (event: any, context: Context) => {
       `;
 
       const textBody = `
-Speech to Email Transcription
+KI-generierter Blogeintrag
 
-File: ${originalFileName}
-Recorded: ${new Date(timestamp).toLocaleString()}
-Record ID: ${recordId}
-Processed: ${new Date().toLocaleString()}
+Datei: ${originalFileName}
+Aufgenommen: ${new Date(timestamp).toLocaleString()}
+Blog-ID: ${recordId}
+Verarbeitet: ${new Date().toLocaleString()}
 
-Transcription:
-${transcriptionText || 'No transcription available'}
+ARTIKEL:
+${enhancedArticleText || 'Kein Blog verfügbar'}
+
+ORIGINAL-TRANSKRIPTION:
+${originalTranscription || 'Keine Transkription verfügbar'}
 
 ${audioFileUrl ? `
-Audio File:
-Listen to the original recording: ${audioFileUrl}
-(Note: This link will expire in 7 days for security reasons.)
+Audio-Datei:
+Hören Sie sich die ursprüngliche Aufnahme an: ${audioFileUrl}
+(Hinweis: Dieser Link läuft aus Sicherheitsgründen in 7 Tagen ab.)
 ` : ''}
 
 ---
-This email was automatically generated by the Speech to Email application.
+Diese E-Mail wurde automatisch von der Speech-to-Email-Anwendung mit KI-Unterstützung generiert.
       `;
 
       // Send email using SES

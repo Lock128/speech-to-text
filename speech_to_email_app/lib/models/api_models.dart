@@ -42,6 +42,8 @@ enum ProcessingStatus {
   uploaded,
   transcribing,
   transcriptionCompleted,
+  enhancingArticle,
+  articleEnhanced,
   emailSent,
   failed,
 }
@@ -51,6 +53,7 @@ class RecordingHistoryItem {
   final ProcessingStatus status;
   final DateTime createdAt;
   final String? transcriptionText;
+  final String? enhancedArticleText;
   final String? errorMessage;
 
   RecordingHistoryItem({
@@ -58,6 +61,7 @@ class RecordingHistoryItem {
     required this.status,
     required this.createdAt,
     this.transcriptionText,
+    this.enhancedArticleText,
     this.errorMessage,
   });
 
@@ -67,6 +71,7 @@ class RecordingHistoryItem {
       status: StatusResponse._parseStatus(json['status'] as String),
       createdAt: DateTime.parse(json['createdAt'] as String),
       transcriptionText: json['transcriptionText'] as String?,
+      enhancedArticleText: json['enhancedArticleText'] as String?,
       errorMessage: json['errorMessage'] as String?,
     );
   }
@@ -77,6 +82,7 @@ class RecordingHistoryItem {
       'status': status.toString().split('.').last,
       'createdAt': createdAt.toIso8601String(),
       'transcriptionText': transcriptionText,
+      'enhancedArticleText': enhancedArticleText,
       'errorMessage': errorMessage,
     };
   }
@@ -85,14 +91,18 @@ class RecordingHistoryItem {
 class StatusResponse {
   final String recordId;
   final ProcessingStatus status;
+  final String? statusDescription;
   final String? transcriptionText;
+  final String? enhancedArticleText;
   final String? errorMessage;
   final double? progress;
 
   StatusResponse({
     required this.recordId,
     required this.status,
+    this.statusDescription,
     this.transcriptionText,
+    this.enhancedArticleText,
     this.errorMessage,
     this.progress,
   });
@@ -101,7 +111,9 @@ class StatusResponse {
     return StatusResponse(
       recordId: json['recordId'] as String,
       status: _parseStatus(json['status'] as String),
+      statusDescription: json['statusDescription'] as String?,
       transcriptionText: json['transcriptionText'] as String?,
+      enhancedArticleText: json['enhancedArticleText'] as String?,
       errorMessage: json['errorMessage'] as String?,
       progress: json['progress'] as double?,
     );
@@ -115,6 +127,10 @@ class StatusResponse {
         return ProcessingStatus.transcribing;
       case 'transcription_completed':
         return ProcessingStatus.transcriptionCompleted;
+      case 'enhancing_article':
+        return ProcessingStatus.enhancingArticle;
+      case 'article_enhanced':
+        return ProcessingStatus.articleEnhanced;
       case 'email_sent':
         return ProcessingStatus.emailSent;
       case 'failed':

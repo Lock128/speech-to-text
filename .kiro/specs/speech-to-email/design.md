@@ -22,11 +22,13 @@ graph TB
         F[S3 Bucket - Web Hosting]
         G[Lambda - Upload Handler]
         H[Lambda - Transcription Handler]
-        I[Lambda - Email Handler]
-        J[Amazon Transcribe]
-        K[Amazon SES]
-        L[CloudWatch Logs]
-        M[DynamoDB - Tracking]
+        I[Lambda - Article Enhancement Handler]
+        J[Lambda - Email Handler]
+        K[Amazon Transcribe]
+        L[AWS Bedrock - Claude Sonnet 4]
+        M[Amazon SES]
+        N[CloudWatch Logs]
+        O[DynamoDB - Tracking]
     end
     
     subgraph "CI/CD"
@@ -43,15 +45,19 @@ graph TB
     C --> E
     E --> G
     G --> H
-    H --> J
-    J --> I
-    I --> K
-    G --> M
-    H --> M
-    I --> M
-    G --> L
-    H --> L
+    H --> K
+    K --> I
     I --> L
+    L --> J
+    J --> M
+    G --> O
+    H --> O
+    I --> O
+    J --> O
+    G --> N
+    H --> N
+    I --> N
+    J --> N
     N --> O
     O --> E
     O --> F
@@ -67,9 +73,11 @@ graph TB
 3. S3 upload triggers Lambda function (Upload Handler)
 4. Upload Handler initiates Transcribe job and updates tracking in DynamoDB
 5. Transcribe completion triggers Lambda function (Transcription Handler)
-6. Transcription Handler retrieves text and triggers Email Handler
-7. Email Handler formats and sends email via SES
-8. Status updates propagated back to client through polling or WebSocket
+6. Transcription Handler retrieves text and triggers Article Enhancement Handler
+7. Article Enhancement Handler sends text to AWS Bedrock (Claude Sonnet 4) with German newspaper prompt
+8. Enhanced article text triggers Email Handler
+9. Email Handler formats and sends email via SES with the AI-enhanced content
+10. Status updates propagated back to client through polling or WebSocket
 
 ## Components and Interfaces
 
@@ -114,12 +122,13 @@ graph TB
    - CloudFront distribution for global content delivery
 
 2. **Processing Stack**
-   - Lambda functions for upload handling, transcription, and email
+   - Lambda functions for upload handling, transcription, article enhancement, and email
    - DynamoDB table for request tracking and status
-   - IAM roles with least-privilege permissions
+   - IAM roles with least-privilege permissions including Bedrock access
 
 3. **Communication Stack**
    - Amazon Transcribe service configuration
+   - AWS Bedrock with Claude Sonnet 4 model access
    - Amazon SES for email delivery
    - CloudWatch for logging and monitoring
 
@@ -151,10 +160,44 @@ interface TranscribeEvent {
 }
 ```
 
+**Article Enhancement Handler Lambda:**
+```typescript
+interface ArticleEnhancementPayload {
+  transcriptionText: string;
+  recordId: string;
+  timestamp: string;
+}
+
+interface BedrockRequest {
+  modelId: 'anthropic.claude-3-5-sonnet-20241022-v2:0';
+  contentType: 'application/json';
+  body: {
+    anthropic_version: 'bedrock-2023-05-31';
+    max_tokens: 4000;
+    messages: Array<{
+      role: 'user';
+      content: string;
+    }>;
+  };
+}
+
+interface BedrockResponse {
+  content: Array<{
+    type: 'text';
+    text: string;
+  }>;
+  usage: {
+    input_tokens: number;
+    output_tokens: number;
+  };
+}
+```
+
 **Email Handler Lambda:**
 ```typescript
 interface EmailPayload {
-  transcriptionText: string;
+  enhancedArticleText: string;
+  originalTranscription: string;
   originalFileName: string;
   timestamp: string;
   recordId: string;
@@ -176,6 +219,8 @@ interface SpeechRecord {
   updatedAt: string;
   transcribeJobName?: string;
   transcriptionText?: string;
+  enhancedArticleText?: string;
+  bedrockProcessedAt?: string;
   emailSentAt?: string;
   errorMessage?: string;
   retryCount: number;
@@ -185,6 +230,8 @@ type ProcessingStatus =
   | 'uploaded' 
   | 'transcribing' 
   | 'transcription_completed' 
+  | 'enhancing_article'
+  | 'article_enhanced'
   | 'email_sent' 
   | 'failed';
 ```
@@ -192,6 +239,38 @@ type ProcessingStatus =
 ### Audio File Naming Convention
 ```
 audio-files/{year}/{month}/{day}/{recordId}.{extension}
+```
+
+### Bedrock Integration
+
+**German Newspaper Article Prompt:**
+```typescript
+const GERMAN_NEWSPAPER_PROMPT = `
+Du bist ein erfahrener Journalist für eine lokale deutsche Zeitung. 
+Verwandle den folgenden transkribierten Text in einen gut strukturierten Zeitungsartikel auf Deutsch.
+
+Anforderungen:
+- Erstelle eine aussagekräftige Schlagzeile
+- Strukturiere den Artikel mit klaren Absätzen
+- Verwende einen journalistischen Schreibstil
+- Korrigiere eventuelle Grammatik- oder Rechtschreibfehler aus der Transkription
+- Behalte alle wichtigen Informationen bei
+- Füge bei Bedarf Kontext hinzu, um den Artikel verständlicher zu machen
+- Verwende eine professionelle, aber zugängliche Sprache
+
+Transkribierter Text:
+{transcriptionText}
+
+Bitte erstelle daraus einen vollständigen Zeitungsartikel auf Deutsch:
+`;
+
+const BEDROCK_CONFIG = {
+  modelId: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+  region: 'us-east-1', // or eu-west-1 depending on availability
+  maxTokens: 4000,
+  temperature: 0.3, // Lower temperature for more consistent, professional output
+  topP: 0.9
+};
 ```
 
 ### API Interfaces
@@ -221,6 +300,7 @@ interface StatusResponse {
   recordId: string;
   status: ProcessingStatus;
   transcriptionText?: string;
+  enhancedArticleText?: string;
   errorMessage?: string;
   progress?: number;
 }
@@ -256,7 +336,13 @@ interface StatusResponse {
    - Implement retry logic for transient failures
    - Fallback to error notification if transcription fails
 
-3. **Email Delivery Errors**
+3. **Bedrock Processing Errors**
+   - Handle model unavailability or rate limiting
+   - Implement fallback to original transcription text
+   - Retry logic with exponential backoff for transient failures
+   - Monitor token usage and costs
+
+4. **Email Delivery Errors**
    - SES bounce and complaint handling
    - Retry logic with exponential backoff
    - Alternative notification methods if email fails

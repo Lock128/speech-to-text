@@ -63,16 +63,40 @@ class DemoService {
     yield StatusResponse(
       recordId: recordId,
       status: ProcessingStatus.transcriptionCompleted,
+      statusDescription: 'Transcription complete, enhancing article...',
+      transcriptionText: 'This is a demo transcription of your audio recording. In the real app, this would be the actual speech-to-text conversion of your audio.',
+      progress: 0.6,
+    );
+    
+    // Simulate article enhancement
+    await Future.delayed(const Duration(seconds: 2));
+    yield StatusResponse(
+      recordId: recordId,
+      status: ProcessingStatus.enhancingArticle,
+      statusDescription: 'Creating newspaper article with AI...',
       transcriptionText: 'This is a demo transcription of your audio recording. In the real app, this would be the actual speech-to-text conversion of your audio.',
       progress: 0.8,
     );
     
-    // Simulate email sent
+    // Simulate article enhanced
     await Future.delayed(const Duration(seconds: 2));
     yield StatusResponse(
       recordId: recordId,
-      status: ProcessingStatus.emailSent,
+      status: ProcessingStatus.articleEnhanced,
+      statusDescription: 'Article enhanced, sending email...',
       transcriptionText: 'This is a demo transcription of your audio recording. In the real app, this would be the actual speech-to-text conversion of your audio.',
+      enhancedArticleText: '<h1>Demo-Zeitungsartikel</h1><p>Dies ist ein Beispiel für einen KI-generierten Zeitungsartikel basierend auf Ihrer Sprachaufnahme. Der echte Artikel würde professionell formatiert und auf Deutsch verfasst sein.</p>',
+      progress: 0.9,
+    );
+    
+    // Simulate email sent
+    await Future.delayed(const Duration(seconds: 1));
+    yield StatusResponse(
+      recordId: recordId,
+      status: ProcessingStatus.emailSent,
+      statusDescription: 'Process complete! Email sent successfully.',
+      transcriptionText: 'This is a demo transcription of your audio recording. In the real app, this would be the actual speech-to-text conversion of your audio.',
+      enhancedArticleText: '<h1>Demo-Zeitungsartikel</h1><p>Dies ist ein Beispiel für einen KI-generierten Zeitungsartikel basierend auf Ihrer Sprachaufnahme. Der echte Artikel würde professionell formatiert und auf Deutsch verfasst sein.</p>',
       progress: 1.0,
     );
     
