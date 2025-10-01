@@ -310,9 +310,11 @@ class _RecordingScreenState extends State<RecordingScreen> {
         switch (status.status) {
           case ProcessingStatus.uploaded:
           case ProcessingStatus.transcribing:
+          case ProcessingStatus.enhancingArticle:
             provider.updateState(RecordingState.processing);
             break;
           case ProcessingStatus.transcriptionCompleted:
+          case ProcessingStatus.articleEnhanced:
             provider.updateState(RecordingState.processing);
             if (status.transcriptionText != null) {
               provider.setTranscriptionText(status.transcriptionText!);
