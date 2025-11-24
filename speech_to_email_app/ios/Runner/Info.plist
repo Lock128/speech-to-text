@@ -49,6 +49,8 @@
 	<string>This app needs access to microphone to record speech messages.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>This app needs access to speech recognition to convert your speech to text.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app may access your photo library to select PDF files for upload. This is used by the file picker functionality.</string>
 	<key>CFBundleIcons</key>
 	<dict>
 		<key>CFBundlePrimaryIcon</key>
