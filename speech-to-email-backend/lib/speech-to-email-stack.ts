@@ -255,6 +255,7 @@ export class SpeechToEmailStack extends cdk.Stack {
 
     // Grant permissions to Article Enhancement Handler
     speechProcessingTable.grantReadWriteData(articleEnhancementHandler);
+    audioStorageBucket.grantRead(articleEnhancementHandler);
     articleEnhancementHandlerRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: [

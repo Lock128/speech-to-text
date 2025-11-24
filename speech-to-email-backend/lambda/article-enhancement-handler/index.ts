@@ -2,10 +2,12 @@ import { Context } from 'aws-lambda';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { DynamoDBClient, UpdateItemCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 
 const bedrockClient = new BedrockRuntimeClient({ region: process.env.AWS_REGION });
 const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION });
 const lambdaClient = new LambdaClient({ region: process.env.AWS_REGION });
+const s3Client = new S3Client({ region: process.env.AWS_REGION });
 
 interface ArticleEnhancementPayload {
     transcriptionText: string;
@@ -60,9 +62,12 @@ Anforderungen:
 - Formatiere den Artikel mit HTML-Tags für bessere Darstellung
 - Alle Spieler des HCVFL sollen erwähnt werden (auch Torhüter, auch ohne Torerfolg).
 - Beide Trainer nennen.
+{coachInfo}
 - Am Ende den offiziellen nuLiga-Spielbericht verlinken
 - Schreibe im lockeren, freundlichen Blogstil für Eltern & Fans.
 - Erzeuge außerdem Meta-Daten im SEO-Format (Title, Description, Keywords, URL-Slug, OG Title, OG Description).
+
+{playerInfo}
 
 Transkribierter Text:
 {transcriptionText}
@@ -77,6 +82,128 @@ const BEDROCK_CONFIG = {
     temperature: 0.2, // Lower temperature for more consistent, professional output
     topP: 0.9
 };
+
+// Function to get coach name and PDF info from DynamoDB record
+async function getRecordDetails(recordId: string) {
+    const getCommand = new GetItemCommand({
+        TableName: process.env.DYNAMODB_TABLE_NAME,
+        Key: {
+            PK: { S: recordId },
+            SK: { S: 'RECORD' },
+        },
+    });
+    
+    const result = await dynamoClient.send(getCommand);
+    return {
+        coachName: result.Item?.coachName?.S,
+        pdfFileKey: result.Item?.pdfFileKey?.S,
+    };
+}
+
+// Function to extract PDF content using Bedrock
+async function extractPdfContent(pdfFileKey: string): Promise<string> {
+    try {
+        const getObjectCommand = new GetObjectCommand({
+            Bucket: process.env.AUDIO_BUCKET_NAME,
+            Key: pdfFileKey,
+        });
+        
+        const response = await s3Client.send(getObjectCommand);
+        
+        if (!response.Body) {
+            throw new Error('No PDF content found');
+        }
+        
+        // Convert PDF to base64 for Bedrock
+        const pdfBytes = await response.Body.transformToByteArray();
+        const pdfBase64 = Buffer.from(pdfBytes).toString('base64');
+        
+        console.log('PDF size:', pdfBytes.length, 'bytes');
+        
+        // Use Bedrock to analyze the PDF
+        const pdfAnalysisPrompt = `
+Analysiere dieses PDF-Dokument und extrahiere folgende Informationen:
+
+1. Alle Spieler des Teams "HC VfL Heppenheim" (oder ähnlich) mit ihren Toren
+2. Format: Name (Anzahl Tore)
+3. Beispiel: Max Mustermann (2), Lisa Schmidt (0)
+4. Auch Spieler ohne Tore auflisten
+5. Torhüter separat erwähnen
+6. Mannschaftsverantwortliche beider Mannschaften
+7. Ergebnis des Spiels im Format "45:34 (23:20)" - Endergebnis (Halbzeit)
+
+Bitte gib nur die relevanten Spielerinformationen zurück, keine anderen Details aus dem Dokument.`;
+        
+        const pdfBedrockRequest = {
+            anthropic_version: 'bedrock-2023-05-31',
+            max_tokens: 2000,
+            temperature: 0.1,
+            messages: [
+                {
+                    role: 'user',
+                    content: [
+                        {
+                            type: 'text',
+                            text: pdfAnalysisPrompt
+                        },
+                        {
+                            type: 'document',
+                            source: {
+                                type: 'base64',
+                                media_type: 'application/pdf',
+                                data: pdfBase64
+                            }
+                        }
+                    ]
+                }
+            ]
+        };
+        
+        const pdfInvokeCommand = new InvokeModelCommand({
+            modelId: BEDROCK_CONFIG.modelId,
+            contentType: 'application/json',
+            body: JSON.stringify(pdfBedrockRequest),
+        });
+        
+        console.log('Sending PDF to Bedrock for analysis');
+        const pdfBedrockResponse = await bedrockClient.send(pdfInvokeCommand);
+        
+        if (!pdfBedrockResponse.body) {
+            throw new Error('No response from Bedrock PDF analysis');
+        }
+        
+        const pdfResponseBody = JSON.parse(new TextDecoder().decode(pdfBedrockResponse.body));
+        const pdfResult = pdfResponseBody as BedrockResponse;
+        
+        if (!pdfResult.content || pdfResult.content.length === 0) {
+            throw new Error('No content in Bedrock PDF analysis response');
+        }
+        
+        const extractedPlayerInfo = pdfResult.content[0].text;
+        console.log('Extracted player info from PDF:', extractedPlayerInfo.substring(0, 200) + '...');
+        
+        return extractedPlayerInfo;
+        
+    } catch (error) {
+        console.error('Error extracting PDF content:', error);
+        return '';
+    }
+}
+
+// Function to check if PDF file exists in S3
+async function pdfExists(pdfFileKey: string): Promise<boolean> {
+    try {
+        const getObjectCommand = new GetObjectCommand({
+            Bucket: process.env.AUDIO_BUCKET_NAME,
+            Key: pdfFileKey,
+        });
+        
+        await s3Client.send(getObjectCommand);
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
 
 export const handler = async (event: any, context: Context) => {
     console.log('Article Enhancement handler triggered:', JSON.stringify(event, null, 2));
@@ -123,8 +250,37 @@ export const handler = async (event: any, context: Context) => {
             await dynamoClient.send(updateStatusCommand);
             console.log(`Updated record status to enhancing_article for ${recordId}`);
 
-            // Prepare the prompt with the transcription text
-            const prompt = GERMAN_NEWSPAPER_PROMPT.replace('{transcriptionText}', transcriptionText);
+            // Get coach name and PDF info from DynamoDB
+            const recordDetails = await getRecordDetails(recordId);
+            console.log('Record details:', recordDetails);
+            
+            // Prepare coach information
+            let coachInfo = '';
+            if (recordDetails.coachName) {
+                coachInfo = `- WICHTIG: Der Trainer/Coach des HC VfL Heppenheim Teams heißt "${recordDetails.coachName}". Verwende immer diesen Namen wenn du über den Coach/Trainer schreibst.`;
+            }
+            
+            // Prepare player information from PDF if available
+            let playerInfo = '';
+            if (recordDetails.pdfFileKey && await pdfExists(recordDetails.pdfFileKey)) {
+                console.log('PDF file found, extracting player information');
+                const pdfContent = await extractPdfContent(recordDetails.pdfFileKey);
+                if (pdfContent) {
+                    playerInfo = `Zusätzliche Spielerinformationen aus dem Spielbericht:
+Analysiere den folgenden PDF-Inhalt und extrahiere eine Liste aller Spieler des Teams "HC VfL Heppenheim" mit ihren Toren in folgendem Format: Name (<Anzahl Tore>). Beispiel: Max Mustermann (2), Lisa Schmidt (0).
+
+PDF-Inhalt:
+${pdfContent}
+
+Verwende diese Informationen um sicherzustellen, dass alle Spieler korrekt erwähnt werden.`;
+                }
+            }
+            
+            // Prepare the prompt with all information
+            let prompt = GERMAN_NEWSPAPER_PROMPT
+                .replace('{transcriptionText}', transcriptionText)
+                .replace('{coachInfo}', coachInfo)
+                .replace('{playerInfo}', playerInfo);
 
             // Prepare Bedrock request
             const bedrockRequest: BedrockRequest = {
