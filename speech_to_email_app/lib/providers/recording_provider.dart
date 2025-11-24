@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../services/error_service.dart';
+import '../services/file_picker_service.dart';
 
 enum RecordingState {
   idle,
@@ -20,6 +21,8 @@ class RecordingProvider extends ChangeNotifier {
   AppError? _error;
   double _uploadProgress = 0.0;
   String? _transcriptionText;
+  String? _coachName;
+  SelectedFile? _selectedPdfFile;
 
   // Getters
   RecordingState get state => _state;
@@ -30,6 +33,8 @@ class RecordingProvider extends ChangeNotifier {
   String? get errorMessage => _error?.message;
   double get uploadProgress => _uploadProgress;
   String? get transcriptionText => _transcriptionText;
+  String? get coachName => _coachName;
+  SelectedFile? get selectedPdfFile => _selectedPdfFile;
 
   bool get isRecording => _state == RecordingState.recording;
   bool get isReviewing => _state == RecordingState.reviewing;
@@ -79,6 +84,16 @@ class RecordingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setCoachName(String? name) {
+    _coachName = name;
+    notifyListeners();
+  }
+
+  void setSelectedPdfFile(SelectedFile? file) {
+    _selectedPdfFile = file;
+    notifyListeners();
+  }
+
   void reset() {
     _state = RecordingState.idle;
     _recordingPath = null;
@@ -87,6 +102,7 @@ class RecordingProvider extends ChangeNotifier {
     _error = null;
     _uploadProgress = 0.0;
     _transcriptionText = null;
+    // Keep coach name and PDF file across resets
     notifyListeners();
   }
 }

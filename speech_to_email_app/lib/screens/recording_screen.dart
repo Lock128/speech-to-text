@@ -15,6 +15,7 @@ import '../widgets/status_indicator.dart';
 import '../widgets/progress_indicator.dart';
 import '../widgets/error_display.dart';
 import '../widgets/audio_player.dart';
+import '../widgets/settings_form.dart';
 import '../services/error_service.dart';
 import '../config/app_config.dart';
 
@@ -270,6 +271,9 @@ class _RecordingScreenState extends State<RecordingScreen> {
           provider.updateUploadProgress(progress);
         },
         cancelToken: _uploadCancelToken,
+        coachName: provider.coachName,
+        pdfFileData: provider.selectedPdfFile?.bytes,
+        pdfFileName: provider.selectedPdfFile?.name,
       );
 
       provider.setRecordId(recordId);
@@ -415,6 +419,11 @@ class _RecordingScreenState extends State<RecordingScreen> {
                           onCancelRecording: _cancelRecording,
                           onUploadRecording: _uploadRecording,
                         ),
+                        
+                        const SizedBox(height: 32),
+                        
+                        // Settings Form (Optional)
+                        const SettingsForm(),
                         
                         const SizedBox(height: 32),
                         

@@ -11,12 +11,16 @@ interface PresignedUrlRequest {
   fileName: string;
   fileSize: number;
   contentType: string;
+  coachName?: string;
+  pdfFileName?: string;
+  pdfFileSize?: number;
 }
 
 interface PresignedUrlResponse {
   uploadUrl: string;
   recordId: string;
   expiresIn: number;
+  pdfUploadUrl?: string;
 }
 
 export const handler = async (
@@ -82,6 +86,9 @@ export const handler = async (
       fileName: InputValidator.sanitizeString(requestBody.fileName),
       fileSize: requestBody.fileSize,
       contentType: requestBody.contentType.toLowerCase(),
+      coachName: requestBody.coachName ? InputValidator.sanitizeString(requestBody.coachName) : undefined,
+      pdfFileName: requestBody.pdfFileName ? InputValidator.sanitizeString(requestBody.pdfFileName) : undefined,
+      pdfFileSize: requestBody.pdfFileSize,
     };
 
     // Generate unique record ID and file key
@@ -101,7 +108,7 @@ export const handler = async (
 
     const fileKey = `audio-files/${year}/${month}/${day}/${recordId}.${extension}`;
 
-    // Create presigned URL
+    // Create presigned URL for audio file
     const command = new PutObjectCommand({
       Bucket: process.env.AUDIO_BUCKET_NAME,
       Key: fileKey,
@@ -110,16 +117,36 @@ export const handler = async (
         recordId: recordId,
         originalFileName: request.fileName,
         uploadTimestamp: now.toISOString(),
+        coachName: request.coachName || '',
+        hasPdfFile: request.pdfFileName ? 'true' : 'false',
       },
     });
 
     const expiresIn = 3600; // 1 hour
     const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn });
+    
+    // Create presigned URL for PDF file if provided
+    let pdfUploadUrl: string | undefined;
+    if (request.pdfFileName && request.pdfFileSize) {
+      const pdfKey = `pdf-files/${year}/${month}/${day}/${recordId}.pdf`;
+      const pdfCommand = new PutObjectCommand({
+        Bucket: process.env.AUDIO_BUCKET_NAME,
+        Key: pdfKey,
+        ContentType: 'application/pdf',
+        Metadata: {
+          recordId: recordId,
+          originalFileName: request.pdfFileName,
+          uploadTimestamp: now.toISOString(),
+        },
+      });
+      pdfUploadUrl = await getSignedUrl(s3Client, pdfCommand, { expiresIn });
+    }
 
     const response: PresignedUrlResponse = {
       uploadUrl,
       recordId,
       expiresIn,
+      pdfUploadUrl,
     };
 
     logger.info('Presigned URL generated successfully', {
@@ -127,6 +154,9 @@ export const handler = async (
       fileName: request.fileName,
       fileSize: request.fileSize,
       contentType: request.contentType,
+      coachName: request.coachName,
+      pdfFileName: request.pdfFileName,
+      hasPdfUpload: !!pdfUploadUrl,
     });
 
     logger.metric('PresignedUrlGenerated', 1);

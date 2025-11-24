@@ -2,19 +2,35 @@ class PresignedUrlRequest {
   final String fileName;
   final int fileSize;
   final String contentType;
+  final String? coachName;
+  final String? pdfFileName;
+  final int? pdfFileSize;
 
   PresignedUrlRequest({
     required this.fileName,
     required this.fileSize,
     required this.contentType,
+    this.coachName,
+    this.pdfFileName,
+    this.pdfFileSize,
   });
 
   Map<String, dynamic> toJson() {
-    return {
+    final json = {
       'fileName': fileName,
       'fileSize': fileSize,
       'contentType': contentType,
     };
+    
+    final coach = coachName;
+    final pdfFile = pdfFileName;
+    final pdfSize = pdfFileSize;
+    
+    if (coach != null) json['coachName'] = coach;
+    if (pdfFile != null) json['pdfFileName'] = pdfFile;
+    if (pdfSize != null) json['pdfFileSize'] = pdfSize;
+    
+    return json;
   }
 }
 
@@ -22,11 +38,13 @@ class PresignedUrlResponse {
   final String uploadUrl;
   final String recordId;
   final int expiresIn;
+  final String? pdfUploadUrl;
 
   PresignedUrlResponse({
     required this.uploadUrl,
     required this.recordId,
     required this.expiresIn,
+    this.pdfUploadUrl,
   });
 
   factory PresignedUrlResponse.fromJson(Map<String, dynamic> json) {
@@ -34,6 +52,7 @@ class PresignedUrlResponse {
       uploadUrl: json['uploadUrl'] as String,
       recordId: json['recordId'] as String,
       expiresIn: json['expiresIn'] as int,
+      pdfUploadUrl: json['pdfUploadUrl'] as String?,
     );
   }
 }

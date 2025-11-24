@@ -14,6 +14,8 @@ interface ProcessingRecord {
   updatedAt: string;
   transcribeJobName?: string;
   retryCount: number;
+  coachName?: string;
+  pdfFileKey?: string;
 }
 
 export const handler = async (event: S3Event, context: Context) => {
@@ -26,6 +28,12 @@ export const handler = async (event: S3Event, context: Context) => {
       
       console.log(`Processing upload: ${objectKey} from bucket: ${bucketName}`);
 
+      // Skip PDF files - they will be handled when the audio file is processed
+      if (objectKey.startsWith('pdf-files/')) {
+        console.log('Skipping PDF file processing:', objectKey);
+        continue;
+      }
+      
       // Extract record ID from the object key (assuming format: audio-files/yyyy/mm/dd/recordId.ext)
       const keyParts = objectKey.split('/');
       const fileName = keyParts[keyParts.length - 1];
@@ -53,6 +61,9 @@ export const handler = async (event: S3Event, context: Context) => {
         continue;
       }
 
+      // Check for corresponding PDF file
+      const pdfKey = `pdf-files/${keyParts[1]}/${keyParts[2]}/${keyParts[3]}/${recordId}.pdf`;
+      
       // Create DynamoDB record
       const dynamoRecord: ProcessingRecord = {
         PK: recordId,
@@ -62,6 +73,7 @@ export const handler = async (event: S3Event, context: Context) => {
         createdAt: now,
         updatedAt: now,
         retryCount: 0,
+        pdfFileKey: pdfKey, // Always set, will be checked during processing
       };
 
       // Store record in DynamoDB with conditional write to prevent duplicates
@@ -75,6 +87,7 @@ export const handler = async (event: S3Event, context: Context) => {
           createdAt: { S: dynamoRecord.createdAt },
           updatedAt: { S: dynamoRecord.updatedAt },
           retryCount: { N: dynamoRecord.retryCount.toString() },
+          ...(dynamoRecord.pdfFileKey && { pdfFileKey: { S: dynamoRecord.pdfFileKey } }),
         },
         ConditionExpression: 'attribute_not_exists(PK)', // Only create if doesn't exist
       });

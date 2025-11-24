@@ -9,12 +9,15 @@ import 'demo_service.dart';
 
 class UploadService {
   final Dio _dio = Dio();
-  
+
   /// Get presigned URL for file upload
   Future<PresignedUrlResponse> getPresignedUrl({
     required String fileName,
     required int fileSize,
     required String contentType,
+    String? coachName,
+    String? pdfFileName,
+    int? pdfFileSize,
   }) async {
     // Check if we should use demo mode
     if (AppConfig.isDemoMode) {
@@ -24,23 +27,24 @@ class UploadService {
         contentType: contentType,
       );
     }
-    
+
     try {
       debugPrint('Requesting presigned URL for: $fileName ($fileSize bytes)');
-      
+
       final request = PresignedUrlRequest(
         fileName: fileName,
         fileSize: fileSize,
         contentType: contentType,
+        coachName: coachName,
+        pdfFileName: pdfFileName,
+        pdfFileSize: pdfFileSize,
       );
 
       final response = await _dio.post(
         AppConfig.presignedUrlEndpoint,
         data: request.toJson(),
         options: Options(
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: {'Content-Type': 'application/json'},
           validateStatus: (status) => status != null && status < 500,
         ),
       );
@@ -48,7 +52,9 @@ class UploadService {
       if (response.statusCode == 200) {
         return PresignedUrlResponse.fromJson(response.data);
       } else {
-        throw Exception('Failed to get presigned URL: ${response.statusCode} - ${response.data}');
+        throw Exception(
+          'Failed to get presigned URL: ${response.statusCode} - ${response.data}',
+        );
       }
     } catch (e) {
       debugPrint('Error getting presigned URL: $e');
@@ -67,11 +73,13 @@ class UploadService {
   }) async {
     const maxRetries = 3;
     int retryCount = 0;
-    
+
     while (retryCount < maxRetries) {
       try {
-        debugPrint('Starting upload to S3 (attempt ${retryCount + 1}/$maxRetries): $filePath');
-        
+        debugPrint(
+          'Starting upload to S3 (attempt ${retryCount + 1}/$maxRetries): $filePath',
+        );
+
         Uint8List fileData;
         int fileSize;
 
@@ -83,10 +91,12 @@ class UploadService {
         } else if (kIsWeb && filePath.startsWith('blob:')) {
           // On web, handle blob URLs with timeout
           debugPrint('Handling web blob URL: $filePath');
-          final response = await http.get(Uri.parse(filePath)).timeout(
-            const Duration(seconds: 30),
-            onTimeout: () => throw Exception('Timeout reading blob data'),
-          );
+          final response = await http
+              .get(Uri.parse(filePath))
+              .timeout(
+                const Duration(seconds: 30),
+                onTimeout: () => throw Exception('Timeout reading blob data'),
+              );
           if (response.statusCode != 200) {
             throw Exception('Failed to read blob data: ${response.statusCode}');
           }
@@ -106,7 +116,9 @@ class UploadService {
 
         // Validate file size
         if (fileSize > AppConfig.maxFileSizeBytes) {
-          throw Exception('File size exceeds maximum limit of ${AppConfig.maxFileSizeBytes} bytes');
+          throw Exception(
+            'File size exceeds maximum limit of ${AppConfig.maxFileSizeBytes} bytes',
+          );
         }
 
         if (fileSize == 0) {
@@ -140,7 +152,9 @@ class UploadService {
             if (total > 0) {
               final progress = sent / total;
               onProgress(progress);
-              debugPrint('Upload progress: ${(progress * 100).toStringAsFixed(1)}%');
+              debugPrint(
+                'Upload progress: ${(progress * 100).toStringAsFixed(1)}%',
+              );
             }
           },
           cancelToken: cancelToken,
@@ -154,24 +168,24 @@ class UploadService {
         }
       } catch (e) {
         debugPrint('Upload attempt ${retryCount + 1} failed: $e');
-        
+
         // Don't retry for these errors
         if (e is DioException && e.type == DioExceptionType.cancel) {
           throw Exception('Upload cancelled');
         }
-        
-        if (e.toString().contains('File size exceeds') || 
+
+        if (e.toString().contains('File size exceeds') ||
             e.toString().contains('File is empty') ||
             e.toString().contains('File does not exist')) {
           throw Exception('Upload failed: $e');
         }
-        
+
         retryCount++;
-        
+
         if (retryCount >= maxRetries) {
           throw Exception('Upload failed after $maxRetries attempts: $e');
         }
-        
+
         // Wait before retry with exponential backoff
         final waitTime = Duration(seconds: retryCount * 2);
         debugPrint('Waiting ${waitTime.inSeconds}s before retry...');
@@ -185,72 +199,88 @@ class UploadService {
     required String filePath,
     required Function(double) onProgress,
     CancelToken? cancelToken,
+    String? coachName,
+    Uint8List? pdfFileData,
+    String? pdfFileName,
   }) async {
     try {
       // Pre-validate file before starting upload
       if (!await validateFile(filePath)) {
         throw Exception('File validation failed');
       }
-      
+
       String fileName;
       int fileSize;
       Uint8List? cachedBlobData;
-      
+
       if (kIsWeb && filePath.startsWith('blob:')) {
         // On web, handle blob URLs
         fileName = 'recording_${DateTime.now().millisecondsSinceEpoch}.m4a';
-        
+
         // Fetch the blob data once and cache it with timeout
         debugPrint('Fetching blob data for size calculation and upload');
-        final dataResponse = await http.get(Uri.parse(filePath)).timeout(
-          const Duration(seconds: 30),
-          onTimeout: () => throw Exception('Timeout fetching blob data'),
-        );
+        final dataResponse = await http
+            .get(Uri.parse(filePath))
+            .timeout(
+              const Duration(seconds: 30),
+              onTimeout: () => throw Exception('Timeout fetching blob data'),
+            );
         if (dataResponse.statusCode != 200) {
-          throw Exception('Failed to fetch blob data: ${dataResponse.statusCode}');
+          throw Exception(
+            'Failed to fetch blob data: ${dataResponse.statusCode}',
+          );
         }
         cachedBlobData = dataResponse.bodyBytes;
         fileSize = cachedBlobData.length;
         debugPrint('Blob data fetched: $fileSize bytes');
-        
+
         // Additional validation for web blobs
         if (fileSize == 0) {
           throw Exception('Recording is empty. Please try recording again.');
         }
         if (fileSize > AppConfig.maxFileSizeBytes) {
-          throw Exception('Recording is too large. Please record a shorter message.');
+          throw Exception(
+            'Recording is too large. Please record a shorter message.',
+          );
         }
       } else {
         // On mobile, handle regular file paths
         final file = File(filePath);
         if (!await file.exists()) {
-          throw Exception('Recording file not found. Please try recording again.');
+          throw Exception(
+            'Recording file not found. Please try recording again.',
+          );
         }
         fileName = file.path.split('/').last;
         fileSize = await file.length();
-        
+
         if (fileSize == 0) {
           throw Exception('Recording is empty. Please try recording again.');
         }
       }
-      
+
       // Determine content type based on file extension or default for web
-      final contentType = kIsWeb && filePath.startsWith('blob:') 
-          ? 'audio/m4a' 
+      final contentType = kIsWeb && filePath.startsWith('blob:')
+          ? 'audio/m4a'
           : _getContentType(fileName);
-      
-      debugPrint('Starting complete upload process for: $fileName (size: $fileSize bytes)');
-      
+
+      debugPrint(
+        'Starting complete upload process for: $fileName (size: $fileSize bytes)',
+      );
+
       // Step 1: Get presigned URL with retry
       onProgress(0.05); // 5% for getting URL
       PresignedUrlResponse? presignedResponse;
-      
+
       for (int attempt = 1; attempt <= 3; attempt++) {
         try {
           presignedResponse = await getPresignedUrl(
             fileName: fileName,
             fileSize: fileSize,
             contentType: contentType,
+            coachName: coachName,
+            pdfFileName: pdfFileName,
+            pdfFileSize: pdfFileData?.length,
           );
           break; // Success
         } catch (e) {
@@ -259,14 +289,14 @@ class UploadService {
           await Future.delayed(Duration(seconds: attempt));
         }
       }
-      
+
       if (presignedResponse == null) {
         throw Exception('Failed to get upload URL after 3 attempts');
       }
-      
+
       debugPrint('Got presigned URL for record: ${presignedResponse.recordId}');
       onProgress(0.1); // 10% after getting URL
-      
+
       // Step 2: Upload file to S3
       await uploadFileToS3(
         filePath: filePath,
@@ -280,27 +310,56 @@ class UploadService {
         cancelToken: cancelToken,
         cachedData: cachedBlobData, // Pass cached data to avoid re-fetching
       );
-      
+
       debugPrint('Upload completed for record: ${presignedResponse.recordId}');
+
+      // Step 3: Upload PDF file if provided
+      debugPrint(
+        'PDF file name: $pdfFileName with data ${pdfFileData?.length} and ${presignedResponse.pdfUploadUrl}',
+      );
+      if (pdfFileData != null && presignedResponse.pdfUploadUrl != null) {
+        debugPrint('Uploading PDF file: $pdfFileName');
+        await uploadFileToS3(
+          filePath: '', // Not used for PDF
+          uploadUrl: presignedResponse.pdfUploadUrl!,
+          contentType: 'application/pdf',
+          onProgress: (progress) {
+            // PDF upload doesn't affect main progress
+            debugPrint(
+              'PDF upload progress: ${(progress * 100).toStringAsFixed(1)}%',
+            );
+          },
+          cancelToken: cancelToken,
+          cachedData: pdfFileData,
+        );
+        debugPrint('PDF upload completed');
+      }
+
       return presignedResponse.recordId;
-      
     } catch (e) {
       debugPrint('Complete upload failed: $e');
-      
+
       // Provide more user-friendly error messages
       final errorString = e.toString().toLowerCase();
       if (errorString.contains('timeout')) {
-        throw Exception('Upload timed out. Please check your internet connection and try again.');
-      } else if (errorString.contains('network') || errorString.contains('connection')) {
-        throw Exception('Network error. Please check your internet connection and try again.');
+        throw Exception(
+          'Upload timed out. Please check your internet connection and try again.',
+        );
+      } else if (errorString.contains('network') ||
+          errorString.contains('connection')) {
+        throw Exception(
+          'Network error. Please check your internet connection and try again.',
+        );
       } else if (errorString.contains('too large')) {
-        throw Exception('Recording is too large. Please record a shorter message.');
+        throw Exception(
+          'Recording is too large. Please record a shorter message.',
+        );
       } else if (errorString.contains('empty')) {
         throw Exception('Recording is empty. Please try recording again.');
       } else if (errorString.contains('cancelled')) {
         throw Exception('Upload cancelled.');
       }
-      
+
       rethrow;
     }
   }
@@ -308,7 +367,7 @@ class UploadService {
   /// Get content type based on file extension
   String _getContentType(String fileName) {
     final extension = fileName.split('.').last.toLowerCase();
-    
+
     switch (extension) {
       case 'mp3':
         return 'audio/mpeg';
@@ -338,12 +397,12 @@ class UploadService {
       if (kIsWeb && filePath.startsWith('blob:')) {
         // On web, validate blob URLs
         debugPrint('Validating web blob: $filePath');
-        
+
         try {
           // On web, we can't use HEAD requests with blob URLs
           // Instead, we'll do a minimal validation by trying to fetch a small portion
           debugPrint('Blob URL validation - assuming valid for web');
-          
+
           // For web blobs, we'll skip detailed validation since:
           // 1. Blob URLs are created by the browser and should be valid
           // 2. We can't easily get size without downloading the entire blob
@@ -356,25 +415,27 @@ class UploadService {
       } else {
         // On mobile, validate regular file paths
         final file = File(filePath);
-        
+
         // Check if file exists
         if (!await file.exists()) {
           debugPrint('File does not exist: $filePath');
           return false;
         }
-        
+
         // Check file size
         final fileSize = await file.length();
         if (fileSize > AppConfig.maxFileSizeBytes) {
-          debugPrint('File size exceeds limit: $fileSize > ${AppConfig.maxFileSizeBytes}');
+          debugPrint(
+            'File size exceeds limit: $fileSize > ${AppConfig.maxFileSizeBytes}',
+          );
           return false;
         }
-        
+
         if (fileSize == 0) {
           debugPrint('File is empty: $filePath');
           return false;
         }
-        
+
         // Check file format
         final fileName = file.path.split('/').last;
         final contentType = _getContentType(fileName);
@@ -382,7 +443,7 @@ class UploadService {
           debugPrint('Unsupported file format: $contentType');
           return false;
         }
-        
+
         return true;
       }
     } catch (e) {
