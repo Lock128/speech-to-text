@@ -250,39 +250,39 @@ export const handler = async (event: any, context: Context) => {
             await dynamoClient.send(updateStatusCommand);
             console.log(`Updated record status to enhancing_article for ${recordId}`);
 
-            // Get coach name and PDF info from DynamoDB
+            // Get coach name and PDF info from DynamoDB record
             const recordDetails = await getRecordDetails(recordId);
             console.log('Record details:', recordDetails);
-            
-            // Prepare coach information
-            let coachInfo = '';
-            if (recordDetails.coachName) {
-                coachInfo = `- WICHTIG: Der Trainer/Coach des HC VfL Heppenheim Teams heißt "${recordDetails.coachName}". Verwende immer diesen Namen wenn du über den Coach/Trainer schreibst.`;
-            }
-            
-            // Prepare player information from PDF if available
+
             let playerInfo = '';
-            if (recordDetails.pdfFileKey && await pdfExists(recordDetails.pdfFileKey)) {
-                console.log('PDF file found, extracting player information');
-                const pdfContent = await extractPdfContent(recordDetails.pdfFileKey);
-                if (pdfContent) {
-                    playerInfo = `Zusätzliche Spielerinformationen aus dem Spielbericht:
-Analysiere den folgenden PDF-Inhalt und extrahiere eine Liste aller Spieler des Teams "HC VfL Heppenheim" mit ihren Toren in folgendem Format: Name (<Anzahl Tore>). Beispiel: Max Mustermann (2), Lisa Schmidt (0).
+            let coachInfo = '';
 
-PDF-Inhalt:
-${pdfContent}
+            // Set coach info if available
+            if (recordDetails.coachName) {
+                coachInfo = `Der Trainer des HC VfL Heppenheim ist ${recordDetails.coachName}.`;
+            }
 
-Verwende diese Informationen um sicherzustellen, dass alle Spieler korrekt erwähnt werden.`;
+            // Extract player info from PDF if available
+            if (recordDetails.pdfFileKey) {
+                console.log('PDF file key found, extracting player information...');
+                const pdfExistsInS3 = await pdfExists(recordDetails.pdfFileKey);
+                if (pdfExistsInS3) {
+                    console.log('PDF found, extracting player information...');
+                    playerInfo = await extractPdfContent(recordDetails.pdfFileKey);
+                    if (playerInfo) {
+                        playerInfo = `Verwende diese Spielerinformationen aus dem offiziellen Spielbericht:\n${playerInfo}`;
+                    }
+                } else {
+                    console.log('PDF file not found in S3:', recordDetails.pdfFileKey);
                 }
             }
-            
-            // Prepare the prompt with all information
-            let prompt = GERMAN_NEWSPAPER_PROMPT
+
+            // Prepare the enhanced prompt with coach and player info
+            const enhancedPrompt = GERMAN_NEWSPAPER_PROMPT
                 .replace('{transcriptionText}', transcriptionText)
                 .replace('{coachInfo}', coachInfo)
                 .replace('{playerInfo}', playerInfo);
 
-            // Prepare Bedrock request
             const bedrockRequest: BedrockRequest = {
                 anthropic_version: 'bedrock-2023-05-31',
                 max_tokens: BEDROCK_CONFIG.maxTokens,
@@ -291,15 +291,12 @@ Verwende diese Informationen um sicherzustellen, dass alle Spieler korrekt erwä
                 messages: [
                     {
                         role: 'user',
-                        content: prompt,
-                    }
-                ]
+                        content: enhancedPrompt,
+                    },
+                ],
             };
 
-            console.log('Sending request to Bedrock with model:', BEDROCK_CONFIG.modelId);
-            console.log('Request payload size:', JSON.stringify(bedrockRequest).length);
-
-            // Call Bedrock
+            console.log('Sending request to Bedrock for article enhancement');
             const invokeCommand = new InvokeModelCommand({
                 modelId: BEDROCK_CONFIG.modelId,
                 contentType: 'application/json',
@@ -309,22 +306,19 @@ Verwende diese Informationen um sicherzustellen, dass alle Spieler korrekt erwä
             const bedrockResponse = await bedrockClient.send(invokeCommand);
 
             if (!bedrockResponse.body) {
-                throw new Error('No response body from Bedrock');
+                throw new Error('No response from Bedrock');
             }
 
-            // Parse the response
             const responseBody = JSON.parse(new TextDecoder().decode(bedrockResponse.body));
-            console.log('Bedrock response:', JSON.stringify(responseBody, null, 2));
+            const result = responseBody as BedrockResponse;
 
-            const bedrockResult = responseBody as BedrockResponse;
-
-            if (!bedrockResult.content || bedrockResult.content.length === 0) {
+            if (!result.content || result.content.length === 0) {
                 throw new Error('No content in Bedrock response');
             }
 
-            const enhancedArticleText = bedrockResult.content[0].text;
+            const enhancedArticleText = result.content[0].text;
             console.log('Enhanced article text length:', enhancedArticleText.length);
-            console.log('Token usage:', bedrockResult.usage);
+            console.log('Token usage:', result.usage);
 
             // Update DynamoDB record with enhanced article
             const updateCommand = new UpdateItemCommand({
@@ -342,14 +336,14 @@ Verwende diese Informationen um sicherzustellen, dass alle Spieler korrekt erwä
                     ':enhancedText': { S: enhancedArticleText },
                     ':processedAt': { S: new Date().toISOString() },
                     ':updatedAt': { S: new Date().toISOString() },
-                    ':tokenUsage': { S: JSON.stringify(bedrockResult.usage) },
+                    ':tokenUsage': { S: JSON.stringify(result.usage) },
                 },
             });
 
             await dynamoClient.send(updateCommand);
             console.log(`Updated record with enhanced article text for ${recordId}`);
 
-            // Prepare email payload with enhanced content
+            // Prepare email payload
             const emailPayload: EmailPayload = {
                 enhancedArticleText,
                 originalTranscription: transcriptionText,
@@ -359,16 +353,10 @@ Verwende diese Informationen um sicherzustellen, dass alle Spieler korrekt erwä
                 audioFileKey,
             };
 
-            console.log('Email payload being sent:', JSON.stringify({
-                ...emailPayload,
-                enhancedArticleText: `${enhancedArticleText.substring(0, 100)}...`,
-                originalTranscription: `${transcriptionText.substring(0, 100)}...`
-            }, null, 2));
-
             // Invoke email handler
             const invokeEmailCommand = new InvokeCommand({
                 FunctionName: process.env.EMAIL_HANDLER_FUNCTION_NAME,
-                InvocationType: 'RequestResponse', // Synchronous invocation
+                InvocationType: 'RequestResponse',
                 Payload: JSON.stringify(emailPayload),
             });
 
@@ -383,7 +371,7 @@ Verwende diese Informationen um sicherzustellen, dass alle Spieler korrekt erwä
                 body: JSON.stringify({
                     message: 'Article enhancement completed successfully',
                     recordId,
-                    tokenUsage: bedrockResult.usage
+                    tokenUsage: result.usage
                 }),
             };
 
