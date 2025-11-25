@@ -28,7 +28,7 @@ on:
     paths: [ 'speech_to_email_app/**' ]
 
 env:
-  FLUTTER_VERSION: '3.16.0'
+  FLUTTER_VERSION: '3.10.6'
 
 jobs:
   analyze:
