@@ -1,9 +1,11 @@
 import { S3Event, Context } from 'aws-lambda';
 import { DynamoDBClient, PutItemCommand, UpdateItemCommand, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import { TranscribeClient, StartTranscriptionJobCommand } from '@aws-sdk/client-transcribe';
+import { S3Client, HeadObjectCommand } from '@aws-sdk/client-s3';
 
 const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION });
 const transcribeClient = new TranscribeClient({ region: process.env.AWS_REGION });
+const s3Client = new S3Client({ region: process.env.AWS_REGION });
 
 interface ProcessingRecord {
   PK: string;
@@ -46,6 +48,20 @@ export const handler = async (event: S3Event, context: Context) => {
 
       const now = new Date().toISOString();
       
+      // Get metadata from S3 object to extract coach name
+      let coachName: string | undefined;
+      try {
+        const headObjectCommand = new HeadObjectCommand({
+          Bucket: bucketName,
+          Key: objectKey,
+        });
+        const headObjectResponse = await s3Client.send(headObjectCommand);
+        coachName = headObjectResponse.Metadata?.coachname; // S3 metadata keys are lowercase
+        console.log('Extracted coach name from metadata:', coachName);
+      } catch (error) {
+        console.error('Error reading S3 object metadata:', error);
+      }
+      
       // Check if record already exists to prevent duplicate processing
       const getCommand = new GetItemCommand({
         TableName: process.env.DYNAMODB_TABLE_NAME,
@@ -74,6 +90,7 @@ export const handler = async (event: S3Event, context: Context) => {
         updatedAt: now,
         retryCount: 0,
         pdfFileKey: pdfKey, // Always set, will be checked during processing
+        coachName: coachName, // Add coach name from metadata
       };
 
       // Store record in DynamoDB with conditional write to prevent duplicates
@@ -88,6 +105,7 @@ export const handler = async (event: S3Event, context: Context) => {
           updatedAt: { S: dynamoRecord.updatedAt },
           retryCount: { N: dynamoRecord.retryCount.toString() },
           ...(dynamoRecord.pdfFileKey && { pdfFileKey: { S: dynamoRecord.pdfFileKey } }),
+          ...(dynamoRecord.coachName && { coachName: { S: dynamoRecord.coachName } }),
         },
         ConditionExpression: 'attribute_not_exists(PK)', // Only create if doesn't exist
       });

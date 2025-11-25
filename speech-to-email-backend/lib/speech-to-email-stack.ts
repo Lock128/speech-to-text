@@ -222,6 +222,7 @@ export class SpeechToEmailStack extends cdk.Stack {
       deadLetterQueue: deadLetterQueue,
       environment: {
         DYNAMODB_TABLE_NAME: speechProcessingTable.tableName,
+        AUDIO_BUCKET_NAME: audioStorageBucket.bucketName,
       },
       bundling: {
         externalModules: ['aws-sdk'],

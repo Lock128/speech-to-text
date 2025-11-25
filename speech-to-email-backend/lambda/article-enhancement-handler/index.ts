@@ -197,10 +197,13 @@ async function pdfExists(pdfFileKey: string): Promise<boolean> {
             Bucket: process.env.AUDIO_BUCKET_NAME,
             Key: pdfFileKey,
         });
-        
+        console.log(getObjectCommand);
         await s3Client.send(getObjectCommand);
+        console.log(`PDF exists in bucket ${process.env.AUDIO_BUCKET_NAME}: ${pdfFileKey}`);
         return true;
-    } catch (error) {
+    } catch (error: any) {
+        console.error(`PDF check failed - Bucket: ${process.env.AUDIO_BUCKET_NAME}, Key: ${pdfFileKey}`);
+        console.error('Error details:', error.name, error.message);
         return false;
     }
 }
@@ -264,7 +267,8 @@ export const handler = async (event: any, context: Context) => {
 
             // Extract player info from PDF if available
             if (recordDetails.pdfFileKey) {
-                console.log('PDF file key found, extracting player information...');
+                console.log('PDF file key found:', recordDetails.pdfFileKey);
+                console.log('Checking PDF in bucket:', process.env.AUDIO_BUCKET_NAME);
                 const pdfExistsInS3 = await pdfExists(recordDetails.pdfFileKey);
                 if (pdfExistsInS3) {
                     console.log('PDF found, extracting player information...');
@@ -273,7 +277,7 @@ export const handler = async (event: any, context: Context) => {
                         playerInfo = `Verwende diese Spielerinformationen aus dem offiziellen Spielbericht:\n${playerInfo}`;
                     }
                 } else {
-                    console.log('PDF file not found in S3:', recordDetails.pdfFileKey);
+                    console.log('PDF file not found in S3. Bucket:', process.env.AUDIO_BUCKET_NAME, 'Key:', recordDetails.pdfFileKey);
                 }
             }
 

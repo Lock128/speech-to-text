@@ -117,7 +117,7 @@ export const handler = async (
         recordId: recordId,
         originalFileName: request.fileName,
         uploadTimestamp: now.toISOString(),
-        coachName: request.coachName || '',
+        coachname: request.coachName || '', // S3 metadata keys are lowercase
         hasPdfFile: request.pdfFileName ? 'true' : 'false',
       },
     });
