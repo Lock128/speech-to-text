@@ -64,6 +64,7 @@ Anforderungen:
 - Beide Trainer nennen.
 {coachInfo}
 - Am Ende den offiziellen nuLiga-Spielbericht verlinken
+- Am Ende die Liste der Torschützen des HC VfL hinzufügen
 - Schreibe im lockeren, freundlichen Blogstil für Eltern & Fans.
 - Erzeuge außerdem Meta-Daten im SEO-Format (Title, Description, Keywords, URL-Slug, OG Title, OG Description).
 
@@ -180,7 +181,7 @@ Bitte gib nur die relevanten Spielerinformationen zurück, keine anderen Details
         }
         
         const extractedPlayerInfo = pdfResult.content[0].text;
-        console.log('Extracted player info from PDF:', extractedPlayerInfo.substring(0, 200) + '...');
+        console.log('Extracted player info from PDF:', extractedPlayerInfo);
         
         return extractedPlayerInfo;
         
@@ -286,7 +287,7 @@ export const handler = async (event: any, context: Context) => {
                 .replace('{transcriptionText}', transcriptionText)
                 .replace('{coachInfo}', coachInfo)
                 .replace('{playerInfo}', playerInfo);
-
+console.log('Enhanced prompt:', enhancedPrompt);
             const bedrockRequest: BedrockRequest = {
                 anthropic_version: 'bedrock-2023-05-31',
                 max_tokens: BEDROCK_CONFIG.maxTokens,
