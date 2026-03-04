@@ -379,7 +379,11 @@ class _GameplayScreenState extends State<GameplayScreen> {
   }
 
   Widget _buildHandballVisualization(BuildContext context, GameplayProvider provider) {
-    final play = HandballPlayService.getDefaultPlay(provider.selectedSpielzug!.name);
+    final selectedSpielzug = provider.selectedSpielzug!;
+    final play = HandballPlayService.getPlay(
+      selectedSpielzug.name,
+      backendData: selectedSpielzug.backendData,
+    );
     
     return _HandballPlayVisualization(play: play);
   }

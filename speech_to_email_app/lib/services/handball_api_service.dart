@@ -171,8 +171,9 @@ class HandballApiService {
 
   Future<SpielzugData> createSpielzug({
     required String name,
-    required String teamId,
+    List<String>? teamIds,
     String? description,
+    String? defensiveFormation,
     List<Map<String, dynamic>>? attackingPlayers,
     List<Map<String, dynamic>>? defendingPlayers,
     List<Map<String, dynamic>>? actions,
@@ -182,8 +183,9 @@ class HandballApiService {
       headers: _headers,
       body: json.encode({
         'name': name,
-        'teamId': teamId,
+        'teamIds': teamIds,
         'description': description,
+        'defensiveFormation': defensiveFormation,
         'attackingPlayers': attackingPlayers ?? [],
         'defendingPlayers': defendingPlayers ?? [],
         'actions': actions ?? [],
@@ -201,6 +203,7 @@ class HandballApiService {
     required String spielzugId,
     String? name,
     String? description,
+    String? defensiveFormation,
     List<Map<String, dynamic>>? attackingPlayers,
     List<Map<String, dynamic>>? defendingPlayers,
     List<Map<String, dynamic>>? actions,
@@ -208,6 +211,7 @@ class HandballApiService {
     final body = <String, dynamic>{};
     if (name != null) body['name'] = name;
     if (description != null) body['description'] = description;
+    if (defensiveFormation != null) body['defensiveFormation'] = defensiveFormation;
     if (attackingPlayers != null) body['attackingPlayers'] = attackingPlayers;
     if (defendingPlayers != null) body['defendingPlayers'] = defendingPlayers;
     if (actions != null) body['actions'] = actions;
@@ -298,8 +302,8 @@ class TeamData {
 class SpielzugData {
   final String id;
   final String name;
-  final String teamId;
   final String? description;
+  final String? defensiveFormation;
   final List<Map<String, dynamic>>? attackingPlayers;
   final List<Map<String, dynamic>>? defendingPlayers;
   final List<Map<String, dynamic>>? actions;
@@ -307,8 +311,8 @@ class SpielzugData {
   SpielzugData({
     required this.id,
     required this.name,
-    required this.teamId,
     this.description,
+    this.defensiveFormation,
     this.attackingPlayers,
     this.defendingPlayers,
     this.actions,
@@ -318,8 +322,8 @@ class SpielzugData {
     return SpielzugData(
       id: json['id'] as String,
       name: json['name'] as String,
-      teamId: json['teamId'] as String,
       description: json['description'] as String?,
+      defensiveFormation: json['defensiveFormation'] as String?,
       attackingPlayers: json['attackingPlayers'] != null
           ? List<Map<String, dynamic>>.from(json['attackingPlayers'] as List)
           : null,
@@ -336,8 +340,8 @@ class SpielzugData {
     return {
       'id': id,
       'name': name,
-      'teamId': teamId,
       'description': description,
+      'defensiveFormation': defensiveFormation,
       'attackingPlayers': attackingPlayers,
       'defendingPlayers': defendingPlayers,
       'actions': actions,

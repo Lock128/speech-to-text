@@ -1,3 +1,5 @@
+import '../services/handball_api_service.dart' as api;
+
 enum Team {
   maennerI('Männer I'),
   maennerII('Männer II'),
@@ -13,11 +15,13 @@ class Spielzug {
   final String id;
   final String name;
   final Team team;
+  final api.SpielzugData? backendData; // Store backend data for visualization
 
   const Spielzug({
     required this.id,
     required this.name,
     required this.team,
+    this.backendData,
   });
 
   Map<String, dynamic> toJson() => {

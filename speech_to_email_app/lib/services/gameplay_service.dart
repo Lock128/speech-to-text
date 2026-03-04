@@ -120,11 +120,12 @@ class GameplayService {
         final teamId = _teamToId(team);
         final spielzuegeData = await _apiService.getSpielzuege(teamId: teamId);
         
-        // Convert API data to Spielzug models
+        // Convert API data to Spielzug models with backend data attached
         return spielzuegeData.map((data) => Spielzug(
           id: data.id,
           name: data.name,
           team: team,
+          backendData: data, // Store backend data for visualization
         )).toList();
       } catch (e) {
         print('Failed to fetch from backend, falling back to local: $e');
@@ -187,7 +188,7 @@ class GameplayService {
         final teamId = _teamToId(team);
         await _apiService.createSpielzug(
           name: name,
-          teamId: teamId,
+          teamIds: [teamId],
           description: 'Created from app',
         );
         return;

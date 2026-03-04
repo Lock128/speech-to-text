@@ -1,7 +1,103 @@
 import 'package:flutter/material.dart';
 import '../models/handball_models.dart';
+import 'handball_api_service.dart' as api;
 
 class HandballPlayService {
+  // Get play from backend data or fallback to default
+  static HandballPlay getPlay(String playName, {api.SpielzugData? backendData}) {
+    if (backendData != null && _hasCompletePlayData(backendData)) {
+      return _createFromBackendData(backendData);
+    }
+    return getDefaultPlay(playName);
+  }
+
+  // Check if backend data has complete play information
+  static bool _hasCompletePlayData(api.SpielzugData data) {
+    return data.attackingPlayers != null &&
+        data.attackingPlayers!.isNotEmpty &&
+        data.actions != null &&
+        data.actions!.isNotEmpty;
+  }
+
+  // Convert backend data to HandballPlay
+  static HandballPlay _createFromBackendData(api.SpielzugData data) {
+    final attackingPlayers = (data.attackingPlayers ?? []).map((p) {
+      return Player(
+        id: p['id'] as String,
+        name: p['name'] as String,
+        position: _parsePosition(p['position'] as String),
+        initialPosition: Offset(
+          (p['x'] as num).toDouble(),
+          (p['y'] as num).toDouble(),
+        ),
+        color: Colors.blue,
+      );
+    }).toList();
+
+    final defendingPlayers = (data.defendingPlayers ?? []).map((p) {
+      return Player(
+        id: p['id'] as String,
+        name: p['name'] as String,
+        position: _parsePosition(p['position'] as String),
+        initialPosition: Offset(
+          (p['x'] as num).toDouble(),
+          (p['y'] as num).toDouble(),
+        ),
+        color: Colors.red,
+      );
+    }).toList();
+
+    final actions = (data.actions ?? []).map((a) {
+      return PlayAction(
+        id: a['id'] as String,
+        type: _parseActionType(a['type'] as String),
+        playerId: a['playerId'] as String,
+        targetPlayerId: a['targetPlayerId'] as String?,
+        targetPosition: a['targetX'] != null && a['targetY'] != null
+            ? Offset(
+                (a['targetX'] as num).toDouble(),
+                (a['targetY'] as num).toDouble(),
+              )
+            : null,
+        sequenceNumber: a['sequenceNumber'] as int,
+        delay: Duration(milliseconds: a['delayMs'] as int? ?? 500),
+        description: a['description'] as String?,
+      );
+    }).toList();
+
+    return HandballPlay(
+      id: data.id,
+      name: data.name,
+      attackingPlayers: attackingPlayers,
+      defendingPlayers: defendingPlayers,
+      actions: actions,
+      description: data.description,
+      defensiveFormation: _parseDefensiveFormation(data.defensiveFormation),
+    );
+  }
+
+  static PlayerPosition _parsePosition(String position) {
+    return PlayerPosition.values.firstWhere(
+      (p) => p.name == position,
+      orElse: () => PlayerPosition.centerBack,
+    );
+  }
+
+  static ActionType _parseActionType(String type) {
+    return ActionType.values.firstWhere(
+      (t) => t.name == type,
+      orElse: () => ActionType.move,
+    );
+  }
+
+  static DefensiveFormation _parseDefensiveFormation(String? formation) {
+    if (formation == null) return DefensiveFormation.sixZero;
+    return DefensiveFormation.values.firstWhere(
+      (f) => f.name == formation,
+      orElse: () => DefensiveFormation.sixZero,
+    );
+  }
+
   static HandballPlay getDefaultPlay(String playName) {
     switch (playName) {
       case 'Leer 1':
