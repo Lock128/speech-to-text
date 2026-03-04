@@ -1,7 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum Organization {
-  hcVflHeppenheim('HC VfL Heppenheim', 'NibelungenhalleCoach'),
+  hcVflHeppenheim('HC VfL Heppenheim', 'nibelungen'),
   demo('Demo', 'demo_key_2024');
 
   final String displayName;

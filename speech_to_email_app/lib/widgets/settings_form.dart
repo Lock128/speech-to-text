@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/recording_provider.dart';
-import '../services/settings_service.dart';
 import '../services/file_picker_service.dart';
 
 class SettingsForm extends StatefulWidget {
@@ -12,36 +11,11 @@ class SettingsForm extends StatefulWidget {
 }
 
 class _SettingsFormState extends State<SettingsForm> {
-  final _coachNameController = TextEditingController();
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _loadSettings();
-  }
-
-  Future<void> _loadSettings() async {
-    final coachName = await SettingsService.getCoachName();
-    if (coachName != null) {
-      _coachNameController.text = coachName;
-      if (mounted) {
-        context.read<RecordingProvider>().setCoachName(coachName);
-      }
-    }
-  }
-
-  Future<void> _saveCoachName() async {
-    final coachName = _coachNameController.text.trim();
-    if (coachName.isNotEmpty) {
-      await SettingsService.setCoachName(coachName);
-      if (mounted) {
-        context.read<RecordingProvider>().setCoachName(coachName);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Coach name saved')),
-        );
-      }
-    }
   }
 
   Future<void> _pickPdfFile() async {
@@ -86,27 +60,9 @@ class _SettingsFormState extends State<SettingsForm> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Settings',
+                  'Additional Settings',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
-                const SizedBox(height: 16),
-                
-                // Coach Name Field
-                TextField(
-                  controller: _coachNameController,
-                  decoration: InputDecoration(
-                    labelText: 'Coach HC VfL',
-                    hintText: 'Enter coach name',
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.save),
-                      onPressed: _saveCoachName,
-                      tooltip: 'Save coach name',
-                    ),
-                  ),
-                  onSubmitted: (_) => _saveCoachName(),
-                ),
-                
                 const SizedBox(height: 16),
                 
                 // PDF File Section
@@ -187,7 +143,6 @@ class _SettingsFormState extends State<SettingsForm> {
 
   @override
   void dispose() {
-    _coachNameController.dispose();
     super.dispose();
   }
 }

@@ -63,6 +63,7 @@ Anforderungen:
 - Alle Spieler des HCVFL sollen erwähnt werden (auch Torhüter, auch ohne Torerfolg).
 - Beide Trainer nennen.
 {coachInfo}
+{teamInfo}
 - Am Ende den offiziellen nuLiga-Spielbericht verlinken
 - Am Ende die Liste der Torschützen des HC VfL hinzufügen
 - Schreibe im lockeren, freundlichen Blogstil für Eltern & Fans.
@@ -84,7 +85,7 @@ const BEDROCK_CONFIG = {
     topP: 0.9
 };
 
-// Function to get coach name and PDF info from DynamoDB record
+// Function to get coach name, team info, and PDF info from DynamoDB record
 async function getRecordDetails(recordId: string) {
     const getCommand = new GetItemCommand({
         TableName: process.env.DYNAMODB_TABLE_NAME,
@@ -97,6 +98,8 @@ async function getRecordDetails(recordId: string) {
     const result = await dynamoClient.send(getCommand);
     return {
         coachName: result.Item?.coachName?.S,
+        teamName: result.Item?.teamName?.S,
+        playerNames: result.Item?.playerNames?.S,
         pdfFileKey: result.Item?.pdfFileKey?.S,
     };
 }
@@ -254,16 +257,30 @@ export const handler = async (event: any, context: Context) => {
             await dynamoClient.send(updateStatusCommand);
             console.log(`Updated record status to enhancing_article for ${recordId}`);
 
-            // Get coach name and PDF info from DynamoDB record
+            // Get coach name, team info, and PDF info from DynamoDB record
             const recordDetails = await getRecordDetails(recordId);
             console.log('Record details:', recordDetails);
 
             let playerInfo = '';
             let coachInfo = '';
+            let teamInfo = '';
+
+            // Set team info if available
+            if (recordDetails.teamName) {
+                teamInfo = `Das Team ist: ${recordDetails.teamName}.`;
+            }
 
             // Set coach info if available
             if (recordDetails.coachName) {
                 coachInfo = `Der Trainer des HC VfL Heppenheim ist ${recordDetails.coachName}.`;
+            }
+
+            // Set player roster if available
+            if (recordDetails.playerNames) {
+                const players = recordDetails.playerNames.split(',').map(p => p.trim()).filter(p => p);
+                if (players.length > 0) {
+                    teamInfo += `\n\nDie Spieler im Kader sind: ${players.join(', ')}.`;
+                }
             }
 
             // Extract player info from PDF if available
@@ -282,10 +299,11 @@ export const handler = async (event: any, context: Context) => {
                 }
             }
 
-            // Prepare the enhanced prompt with coach and player info
+            // Prepare the enhanced prompt with coach, team, and player info
             const enhancedPrompt = GERMAN_NEWSPAPER_PROMPT
                 .replace('{transcriptionText}', transcriptionText)
                 .replace('{coachInfo}', coachInfo)
+                .replace('{teamInfo}', teamInfo)
                 .replace('{playerInfo}', playerInfo);
 console.log('Enhanced prompt:', enhancedPrompt);
             const bedrockRequest: BedrockRequest = {

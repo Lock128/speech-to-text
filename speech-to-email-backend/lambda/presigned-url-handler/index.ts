@@ -14,6 +14,8 @@ interface PresignedUrlRequest {
   coachName?: string;
   pdfFileName?: string;
   pdfFileSize?: number;
+  teamName?: string;
+  playerNames?: string[];
 }
 
 interface PresignedUrlResponse {
@@ -89,6 +91,8 @@ export const handler = async (
       coachName: requestBody.coachName ? InputValidator.sanitizeString(requestBody.coachName) : undefined,
       pdfFileName: requestBody.pdfFileName ? InputValidator.sanitizeString(requestBody.pdfFileName) : undefined,
       pdfFileSize: requestBody.pdfFileSize,
+      teamName: requestBody.teamName ? InputValidator.sanitizeString(requestBody.teamName) : undefined,
+      playerNames: requestBody.playerNames ? requestBody.playerNames.map((name: string) => InputValidator.sanitizeString(name)) : undefined,
     };
 
     // Generate unique record ID and file key
@@ -118,6 +122,8 @@ export const handler = async (
         originalFileName: request.fileName,
         uploadTimestamp: now.toISOString(),
         coachname: request.coachName || '', // S3 metadata keys are lowercase
+        teamname: request.teamName || '',
+        playernames: request.playerNames ? request.playerNames.join(',') : '',
         hasPdfFile: request.pdfFileName ? 'true' : 'false',
       },
     });
@@ -155,6 +161,8 @@ export const handler = async (
       fileSize: request.fileSize,
       contentType: request.contentType,
       coachName: request.coachName,
+      teamName: request.teamName,
+      playerCount: request.playerNames?.length || 0,
       pdfFileName: request.pdfFileName,
       hasPdfUpload: !!pdfUploadUrl,
     });

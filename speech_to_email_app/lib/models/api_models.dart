@@ -5,6 +5,8 @@ class PresignedUrlRequest {
   final String? coachName;
   final String? pdfFileName;
   final int? pdfFileSize;
+  final String? teamName;
+  final List<String>? playerNames;
 
   PresignedUrlRequest({
     required this.fileName,
@@ -13,6 +15,8 @@ class PresignedUrlRequest {
     this.coachName,
     this.pdfFileName,
     this.pdfFileSize,
+    this.teamName,
+    this.playerNames,
   });
 
   Map<String, dynamic> toJson() {
@@ -25,10 +29,14 @@ class PresignedUrlRequest {
     final coach = coachName;
     final pdfFile = pdfFileName;
     final pdfSize = pdfFileSize;
+    final team = teamName;
+    final players = playerNames;
     
     if (coach != null) json['coachName'] = coach;
     if (pdfFile != null) json['pdfFileName'] = pdfFile;
     if (pdfSize != null) json['pdfFileSize'] = pdfSize;
+    if (team != null) json['teamName'] = team;
+    if (players != null && players.isNotEmpty) json['playerNames'] = players;
     
     return json;
   }

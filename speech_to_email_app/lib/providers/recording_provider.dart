@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../services/error_service.dart';
 import '../services/file_picker_service.dart';
+import '../models/team_models.dart';
 
 enum RecordingState {
   idle,
@@ -23,6 +24,8 @@ class RecordingProvider extends ChangeNotifier {
   String? _transcriptionText;
   String? _coachName;
   SelectedFile? _selectedPdfFile;
+  TeamInfo? _selectedTeam;
+  List<String>? _customPlayerList;
 
   // Getters
   RecordingState get state => _state;
@@ -35,6 +38,8 @@ class RecordingProvider extends ChangeNotifier {
   String? get transcriptionText => _transcriptionText;
   String? get coachName => _coachName;
   SelectedFile? get selectedPdfFile => _selectedPdfFile;
+  TeamInfo? get selectedTeam => _selectedTeam;
+  List<String>? get customPlayerList => _customPlayerList;
 
   bool get isRecording => _state == RecordingState.recording;
   bool get isReviewing => _state == RecordingState.reviewing;
@@ -94,6 +99,26 @@ class RecordingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setSelectedTeam(TeamInfo? team) {
+    _selectedTeam = team;
+    // Auto-update coach name when team is selected
+    if (team != null) {
+      _coachName = team.coach;
+    }
+    // Reset custom player list when team changes
+    _customPlayerList = null;
+    notifyListeners();
+  }
+
+  void setCustomPlayerList(List<String>? players) {
+    _customPlayerList = players;
+    notifyListeners();
+  }
+
+  List<String> getEffectivePlayerList() {
+    return _customPlayerList ?? _selectedTeam?.players ?? [];
+  }
+
   void reset() {
     _state = RecordingState.idle;
     _recordingPath = null;
@@ -102,7 +127,7 @@ class RecordingProvider extends ChangeNotifier {
     _error = null;
     _uploadProgress = 0.0;
     _transcriptionText = null;
-    // Keep coach name and PDF file across resets
+    // Keep coach name, PDF file, team selection, and custom player list across resets
     notifyListeners();
   }
 }

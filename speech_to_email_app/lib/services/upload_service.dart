@@ -18,6 +18,8 @@ class UploadService {
     String? coachName,
     String? pdfFileName,
     int? pdfFileSize,
+    String? teamName,
+    List<String>? playerNames,
   }) async {
     // Check if we should use demo mode
     if (AppConfig.isDemoMode) {
@@ -38,6 +40,8 @@ class UploadService {
         coachName: coachName,
         pdfFileName: pdfFileName,
         pdfFileSize: pdfFileSize,
+        teamName: teamName,
+        playerNames: playerNames,
       );
 
       final response = await _dio.post(
@@ -202,6 +206,8 @@ class UploadService {
     String? coachName,
     Uint8List? pdfFileData,
     String? pdfFileName,
+    String? teamName,
+    List<String>? playerNames,
   }) async {
     try {
       // Pre-validate file before starting upload
@@ -281,6 +287,8 @@ class UploadService {
             coachName: coachName,
             pdfFileName: pdfFileName,
             pdfFileSize: pdfFileData?.length,
+            teamName: teamName,
+            playerNames: playerNames,
           );
           break; // Success
         } catch (e) {

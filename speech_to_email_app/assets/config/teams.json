@@ -1,0 +1,104 @@
+{
+  "teams": [
+    {
+      "id": "maennerI",
+      "name": "Männer I",
+      "coach": "Ginader, Andreas",
+      "players": [
+        "Kreth, Tim",
+        "Hoehling, Konstantin",
+        "Brand, Yannick",
+        "Zajonz, Lukas",
+        "Werle, Rouven",
+        "Ludwig, Nils",
+        "Antes, Moritz",
+        "Vetter, Marcel-Lukas",
+        "Kaspar, Sebastian",
+        "Cherkasov, Roman",
+        "Bartke, Felix",
+        "Lautenscheidt, Julian",
+        "Müller, Jonas",
+        "Demiryol, Aykut",
+        "Kamer, Thomas",
+        "Kaspar, Philip"
+      ]
+    },
+    {
+      "id": "maennerII",
+      "name": "Männer II",
+      "coach": "Schütz, Jonas",
+      "players": [
+        "Haag, Christopher",
+        "Guthier, Daniel",
+        "Schäffauer, Marc",
+        "Brand, Yannick",
+        "Bangert, Dominik",
+        "Scholz, Johannes",
+        "Strauß, Timothy",
+        "Schmitt, Philipp",
+        "Meier, Simon",
+        "Kaspar, Manuel",
+        "Jung, Nico",
+        "Hailer, Benjamin",
+        "Hannken, Niels",
+        "Saul, Frederik"
+      ]
+    },
+    {
+      "id": "damen",
+      "name": "Damen",
+      "coach": "Skandik, Jozef",
+      "players": [
+        "Fellmann, Monja",
+        "Kaiser, Johanna",
+        "Marešová, Anne-Christin",
+        "Wadowski, Tina",
+        "Dickson, Rebecca",
+        "Hamel, Mareike",
+        "Maier, Michelle",
+        "Wobbe, Meike",
+        "Dickson, Jennifer",
+        "Strauch, Sandra",
+        "Merkel, Samantha",
+        "Elsesser, Mia",
+        "Meyer, Leonie"
+      ]
+    },
+    {
+      "id": "mC1",
+      "name": "mC1",
+      "coach": "Eberle, Ralf",
+      "players": [
+        "Mayer, Tom",
+        "Beisele, Martin",
+        "Jacob, Felix",
+        "Lennert, Jan Thore",
+        "Blesing, Maximilian",
+        "Schum, Philipp Andreas",
+        "Wystemp, Jonas",
+        "Scholz, Johann",
+        "Marienfeld, Ricky-Loong",
+        "Benker, Theo",
+        "Hollenberg, Ben",
+        "Fischer, Finn"
+      ]
+    },
+    {
+      "id": "mC2",
+      "name": "mC2",
+      "coach": "Koch, Johannes",
+      "players": [
+        "Knebelspieß, Emil",
+        "Kramer, Janik",
+        "Müller, Jakob",
+        "Mitsch, Julian",
+        "Kreis, Christopher",
+        "Fink, Bjarne",
+        "Rüthers, Peer",
+        "Schober, Leif",
+        "Koch, Laurens",
+        "Linnenkohl, Tim"
+      ]
+    }
+  ]
+}

@@ -17,6 +17,8 @@ interface ProcessingRecord {
   transcribeJobName?: string;
   retryCount: number;
   coachName?: string;
+  teamName?: string;
+  playerNames?: string;
   pdfFileKey?: string;
 }
 
@@ -48,8 +50,10 @@ export const handler = async (event: S3Event, context: Context) => {
 
       const now = new Date().toISOString();
       
-      // Get metadata from S3 object to extract coach name
+      // Get metadata from S3 object to extract coach name, team name, and player names
       let coachName: string | undefined;
+      let teamName: string | undefined;
+      let playerNames: string | undefined;
       try {
         const headObjectCommand = new HeadObjectCommand({
           Bucket: bucketName,
@@ -57,7 +61,9 @@ export const handler = async (event: S3Event, context: Context) => {
         });
         const headObjectResponse = await s3Client.send(headObjectCommand);
         coachName = headObjectResponse.Metadata?.coachname; // S3 metadata keys are lowercase
-        console.log('Extracted coach name from metadata:', coachName);
+        teamName = headObjectResponse.Metadata?.teamname;
+        playerNames = headObjectResponse.Metadata?.playernames;
+        console.log('Extracted metadata:', { coachName, teamName, playerNames });
       } catch (error) {
         console.error('Error reading S3 object metadata:', error);
       }
@@ -91,6 +97,8 @@ export const handler = async (event: S3Event, context: Context) => {
         retryCount: 0,
         pdfFileKey: pdfKey, // Always set, will be checked during processing
         coachName: coachName, // Add coach name from metadata
+        teamName: teamName, // Add team name from metadata
+        playerNames: playerNames, // Add player names from metadata
       };
 
       // Store record in DynamoDB with conditional write to prevent duplicates
@@ -106,6 +114,8 @@ export const handler = async (event: S3Event, context: Context) => {
           retryCount: { N: dynamoRecord.retryCount.toString() },
           ...(dynamoRecord.pdfFileKey && { pdfFileKey: { S: dynamoRecord.pdfFileKey } }),
           ...(dynamoRecord.coachName && { coachName: { S: dynamoRecord.coachName } }),
+          ...(dynamoRecord.teamName && { teamName: { S: dynamoRecord.teamName } }),
+          ...(dynamoRecord.playerNames && { playerNames: { S: dynamoRecord.playerNames } }),
         },
         ConditionExpression: 'attribute_not_exists(PK)', // Only create if doesn't exist
       });

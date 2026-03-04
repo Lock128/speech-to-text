@@ -17,6 +17,7 @@ import '../widgets/progress_indicator.dart';
 import '../widgets/error_display.dart';
 import '../widgets/audio_player.dart';
 import '../widgets/settings_form.dart';
+import '../widgets/team_selector.dart';
 import '../services/error_service.dart';
 import '../config/app_config.dart';
 import 'home_screen.dart';
@@ -276,6 +277,8 @@ class _RecordingScreenState extends State<RecordingScreen> {
         coachName: provider.coachName,
         pdfFileData: provider.selectedPdfFile?.bytes,
         pdfFileName: provider.selectedPdfFile?.name,
+        teamName: provider.selectedTeam?.displayName,
+        playerNames: provider.getEffectivePlayerList(),
       );
 
       provider.setRecordId(recordId);
@@ -431,6 +434,22 @@ class _RecordingScreenState extends State<RecordingScreen> {
                         ),
                         
                         const SizedBox(height: 32),
+                        
+                        // Team Selection
+                        TeamSelector(
+                          selectedTeam: provider.selectedTeam,
+                          onTeamSelected: (team) {
+                            provider.setSelectedTeam(team);
+                          },
+                          onCoachChanged: (coach) {
+                            provider.setCoachName(coach);
+                          },
+                          onPlayersChanged: (players) {
+                            provider.setCustomPlayerList(players);
+                          },
+                        ),
+                        
+                        const SizedBox(height: 24),
                         
                         // Settings Form (Optional)
                         const SettingsForm(),
