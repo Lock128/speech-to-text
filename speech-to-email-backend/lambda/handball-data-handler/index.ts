@@ -15,13 +15,34 @@ interface Team {
   organizationId: string;
 }
 
+interface Player {
+  id: string;
+  name: string;
+  position: string; // PlayerPosition enum value
+  x: number;
+  y: number;
+}
+
+interface PlayAction {
+  id: string;
+  type: string; // ActionType enum value (pass, move, shoot, screen, cut)
+  playerId: string;
+  targetPlayerId?: string;
+  targetX?: number;
+  targetY?: number;
+  sequenceNumber: number;
+  delayMs?: number;
+  description?: string;
+}
+
 interface Spielzug {
   id: string;
   name: string;
   description?: string;
-  attackingPlayers?: any[];
-  defendingPlayers?: any[];
-  actions?: any[];
+  attackingPlayers?: Player[];
+  defendingPlayers?: Player[];
+  actions?: PlayAction[];
+  defensiveFormation?: string; // DefensiveFormation enum value (sixZero, fiveOne, etc.)
 }
 
 interface Organization {
