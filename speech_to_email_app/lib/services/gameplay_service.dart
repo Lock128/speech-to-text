@@ -2,11 +2,27 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/gameplay_models.dart';
 import 'auth_service.dart';
+import 'handball_api_service.dart' as api;
 
 class GameplayService {
   static const String _spielzuegeKey = 'spielzuege_data';
+  static const String _useBackendKey = 'use_backend_api';
+  
+  final api.HandballApiService _apiService = api.HandballApiService();
 
-  // Default Spielzüge for HC VfL Heppenheim
+  // Check if backend API should be used
+  Future<bool> shouldUseBackend() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_useBackendKey) ?? false;
+  }
+
+  // Enable/disable backend API usage
+  Future<void> setUseBackend(bool useBackend) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_useBackendKey, useBackend);
+  }
+
+  // Default Spielzüge for HC VfL Heppenheim (fallback)
   static final Map<Team, List<Spielzug>> _hcVflSpielzuege = {
     Team.maennerI: [
       Spielzug(id: 'm1_1', name: 'Leer 1', team: Team.maennerI),
@@ -40,7 +56,7 @@ class GameplayService {
     ],
   };
 
-  // Default Spielzüge for Demo organization
+  // Default Spielzüge for Demo organization (fallback)
   static final Map<Team, List<Spielzug>> _demoSpielzuege = {
     Team.maennerI: [
       Spielzug(id: 'demo_m1_1', name: 'Demo Play 1', team: Team.maennerI),
@@ -79,7 +95,44 @@ class GameplayService {
     }
   }
 
+  // Convert Team enum to backend team ID
+  String _teamToId(Team team) {
+    switch (team) {
+      case Team.maennerI:
+        return 'maennerI';
+      case Team.maennerII:
+        return 'maennerII';
+      case Team.damen:
+        return 'damen';
+      case Team.mC1:
+        return 'mC1';
+      case Team.mC2:
+        return 'mC2';
+    }
+  }
+
   Future<List<Spielzug>> getSpielzuegeForTeam(Team team, Organization organization) async {
+    final useBackend = await shouldUseBackend();
+    
+    if (useBackend) {
+      try {
+        // Try to fetch from backend
+        final teamId = _teamToId(team);
+        final spielzuegeData = await _apiService.getSpielzuege(teamId: teamId);
+        
+        // Convert API data to Spielzug models
+        return spielzuegeData.map((data) => Spielzug(
+          id: data.id,
+          name: data.name,
+          team: team,
+        )).toList();
+      } catch (e) {
+        print('Failed to fetch from backend, falling back to local: $e');
+        // Fall back to local storage
+      }
+    }
+    
+    // Use local storage (original implementation)
     final prefs = await SharedPreferences.getInstance();
     final storageKey = _getStorageKey(organization);
     final jsonString = prefs.getString(storageKey);
@@ -127,6 +180,24 @@ class GameplayService {
   }
 
   Future<void> addSpielzug(Team team, String name, Organization organization) async {
+    final useBackend = await shouldUseBackend();
+    
+    if (useBackend) {
+      try {
+        final teamId = _teamToId(team);
+        await _apiService.createSpielzug(
+          name: name,
+          teamId: teamId,
+          description: 'Created from app',
+        );
+        return;
+      } catch (e) {
+        print('Failed to create spielzug in backend: $e');
+        // Fall through to local storage
+      }
+    }
+    
+    // Local storage implementation
     final spielzuege = await getSpielzuegeForTeam(team, organization);
     final newId = '${organization.name}_${team.name}_${DateTime.now().millisecondsSinceEpoch}';
     spielzuege.add(Spielzug(id: newId, name: name, team: team));
@@ -134,12 +205,41 @@ class GameplayService {
   }
 
   Future<void> removeSpielzug(Team team, String id, Organization organization) async {
+    final useBackend = await shouldUseBackend();
+    
+    if (useBackend) {
+      try {
+        await _apiService.deleteSpielzug(id);
+        return;
+      } catch (e) {
+        print('Failed to delete spielzug from backend: $e');
+        // Fall through to local storage
+      }
+    }
+    
+    // Local storage implementation
     final spielzuege = await getSpielzuegeForTeam(team, organization);
     spielzuege.removeWhere((s) => s.id == id);
     await saveSpielzuegeForTeam(team, spielzuege, organization);
   }
 
   Future<void> updateSpielzug(Team team, String id, String newName, Organization organization) async {
+    final useBackend = await shouldUseBackend();
+    
+    if (useBackend) {
+      try {
+        await _apiService.updateSpielzug(
+          spielzugId: id,
+          name: newName,
+        );
+        return;
+      } catch (e) {
+        print('Failed to update spielzug in backend: $e');
+        // Fall through to local storage
+      }
+    }
+    
+    // Local storage implementation
     final spielzuege = await getSpielzuegeForTeam(team, organization);
     final index = spielzuege.indexWhere((s) => s.id == id);
     if (index != -1) {

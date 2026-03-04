@@ -110,6 +110,39 @@ export class SpeechToEmailStack extends cdk.Stack {
       },
     });
 
+    // DynamoDB table for handball data (teams, players, spielzüge)
+    const handbballDataTable = new dynamodb.Table(this, 'HandballDataTable', {
+      tableName: 'HandballData',
+      partitionKey: {
+        name: 'PK',
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'SK',
+        type: dynamodb.AttributeType.STRING,
+      },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
+      encryptionKey: encryptionKey,
+      pointInTimeRecoverySpecification: {
+        pointInTimeRecoveryEnabled: true,
+      },
+      removalPolicy: cdk.RemovalPolicy.DESTROY, // For development
+    });
+
+    // Add GSI for querying by organization and team
+    handbballDataTable.addGlobalSecondaryIndex({
+      indexName: 'GSI1',
+      partitionKey: {
+        name: 'GSI1PK',
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: 'GSI1SK',
+        type: dynamodb.AttributeType.STRING,
+      },
+    });
+
     // Dead Letter Queue for failed Lambda executions
     const deadLetterQueue = new sqs.Queue(this, 'DeadLetterQueue', {
       queueName: 'speech-to-email-dlq',
@@ -170,6 +203,14 @@ export class SpeechToEmailStack extends cdk.Stack {
 
     // SES Notification Handler Role
     const sesNotificationHandlerRole = new iam.Role(this, 'SESNotificationHandlerRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    });
+
+    // Handball Data Handler Role
+    const handbballDataHandlerRole = new iam.Role(this, 'HandballDataHandlerRole', {
       assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
       managedPolicies: [
         iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
@@ -366,8 +407,33 @@ export class SpeechToEmailStack extends cdk.Stack {
         loggingLevel: apigateway.MethodLoggingLevel.INFO,
         dataTraceEnabled: true,
         metricsEnabled: true,
+        throttlingBurstLimit: 100,
+        throttlingRateLimit: 50,
       },
     });
+
+    // Create API Key for the handball API
+    const handbballApiKey = api.addApiKey('HandballApiKey', {
+      apiKeyName: 'handball-app-key',
+      description: 'API Key for Handball App',
+    });
+
+    // Create Usage Plan with rate limiting
+    const handbballUsagePlan = api.addUsagePlan('HandballUsagePlan', {
+      name: 'handball-usage-plan',
+      description: 'Usage plan for Handball API with rate limiting',
+      throttle: {
+        rateLimit: 10, // requests per second
+        burstLimit: 20, // max concurrent requests
+      },
+      quota: {
+        limit: 10000, // requests per month
+        period: apigateway.Period.MONTH,
+      },
+    });
+
+    // Associate API key with usage plan
+    handbballUsagePlan.addApiKey(handbballApiKey);
 
     // WAF association temporarily removed to avoid deployment issues
 
@@ -392,6 +458,27 @@ export class SpeechToEmailStack extends cdk.Stack {
     // Grant permissions to Status Handler
     speechProcessingTable.grantReadData(statusHandler);
 
+    // Handball Data Handler Lambda
+    const handbballDataHandler = new nodejs.NodejsFunction(this, 'HandballDataHandler', {
+      functionName: 'speech-to-email-handball-data-handler',
+      runtime: lambda.Runtime.NODEJS_LATEST,
+      entry: 'lambda/handball-data-handler/index.ts',
+      handler: 'handler',
+      role: handbballDataHandlerRole,
+      timeout: cdk.Duration.seconds(30),
+      environment: {
+        HANDBALL_TABLE_NAME: handbballDataTable.tableName,
+      },
+      bundling: {
+        externalModules: ['aws-sdk'],
+        minify: true,
+        sourceMap: false,
+      },
+    });
+
+    // Grant permissions to Handball Data Handler
+    handbballDataTable.grantReadWriteData(handbballDataHandler);
+
     // API Gateway integration for presigned URL
     const presignedUrlIntegration = new apigateway.LambdaIntegration(presignedUrlHandler);
     const presignedUrlResource = api.root.addResource('presigned-url');
@@ -402,6 +489,41 @@ export class SpeechToEmailStack extends cdk.Stack {
     const statusResource = api.root.addResource('status');
     const statusRecordResource = statusResource.addResource('{recordId}');
     statusRecordResource.addMethod('GET', statusIntegration);
+
+    // API Gateway integration for handball data
+    const handbballDataIntegration = new apigateway.LambdaIntegration(handbballDataHandler);
+    const handbballResource = api.root.addResource('handball');
+    
+    // Organizations endpoints
+    const organizationsResource = handbballResource.addResource('organizations');
+    organizationsResource.addMethod('GET', handbballDataIntegration, { apiKeyRequired: true });
+    organizationsResource.addMethod('POST', handbballDataIntegration, { apiKeyRequired: true });
+    const organizationResource = organizationsResource.addResource('{id}');
+    organizationResource.addMethod('GET', handbballDataIntegration, { apiKeyRequired: true });
+    organizationResource.addMethod('DELETE', handbballDataIntegration, { apiKeyRequired: true });
+    
+    // Teams endpoints
+    const teamsResource = handbballResource.addResource('teams');
+    teamsResource.addMethod('GET', handbballDataIntegration, { apiKeyRequired: true });
+    teamsResource.addMethod('POST', handbballDataIntegration, { apiKeyRequired: true });
+    const teamResource = teamsResource.addResource('{id}');
+    teamResource.addMethod('GET', handbballDataIntegration, { apiKeyRequired: true });
+    teamResource.addMethod('PUT', handbballDataIntegration, { apiKeyRequired: true });
+    teamResource.addMethod('DELETE', handbballDataIntegration, { apiKeyRequired: true });
+    
+    // Spielzüge endpoints
+    const spielzuegeResource = handbballResource.addResource('spielzuege');
+    spielzuegeResource.addMethod('GET', handbballDataIntegration, { apiKeyRequired: true });
+    spielzuegeResource.addMethod('POST', handbballDataIntegration, { apiKeyRequired: true });
+    const spielzugResource = spielzuegeResource.addResource('{id}');
+    spielzugResource.addMethod('GET', handbballDataIntegration, { apiKeyRequired: true });
+    spielzugResource.addMethod('PUT', handbballDataIntegration, { apiKeyRequired: true });
+    spielzugResource.addMethod('DELETE', handbballDataIntegration, { apiKeyRequired: true });
+
+    // Add handball endpoints to usage plan
+    handbballUsagePlan.addApiStage({
+      stage: api.deploymentStage,
+    });
 
     // CloudFront distribution for Flutter web app (without API Gateway integration to avoid circular dependency)
     const distribution = new cloudfront.Distribution(this, 'WebDistribution', {
@@ -583,6 +705,22 @@ export class SpeechToEmailStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'StatusHandlerArn', {
       value: statusHandler.functionArn,
       description: 'ARN of the Status Handler Lambda function',
+    });
+
+    new cdk.CfnOutput(this, 'HandballDataHandlerArn', {
+      value: handbballDataHandler.functionArn,
+      description: 'ARN of the Handball Data Handler Lambda function',
+    });
+
+    new cdk.CfnOutput(this, 'HandballDataTableName', {
+      value: handbballDataTable.tableName,
+      description: 'Name of the DynamoDB table for handball data',
+    });
+
+    new cdk.CfnOutput(this, 'HandballApiKeyId', {
+      value: handbballApiKey.keyId,
+      description: 'API Key ID for Handball API (use AWS Console to get the actual key value)',
+      exportName: 'HandballApiKeyId',
     });
 
     // CloudWatch Alarms temporarily removed to avoid circular dependencies

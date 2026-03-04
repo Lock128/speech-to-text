@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
+import '../services/gameplay_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -13,6 +14,21 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _keyController = TextEditingController();
   bool _isKeyVisible = false;
+  bool _useBackendApi = false;
+  final GameplayService _gameplayService = GameplayService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBackendSetting();
+  }
+
+  Future<void> _loadBackendSetting() async {
+    final useBackend = await _gameplayService.shouldUseBackend();
+    setState(() {
+      _useBackendApi = useBackend;
+    });
+  }
 
   @override
   void dispose() {
@@ -37,6 +53,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _buildOrganizationSelector(context, authProvider),
                 const SizedBox(height: 8),
                 _buildAuthenticationCard(context, authProvider),
+                const Divider(height: 32),
+                
+                _buildSectionHeader(context, 'Data Source'),
+                _buildBackendApiToggle(context),
                 const Divider(height: 32),
                 
                 _buildSectionHeader(context, 'General'),
@@ -132,6 +152,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
             );
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildBackendApiToggle(BuildContext context) {
+    return Card(
+      elevation: 2,
+      child: SwitchListTile(
+        secondary: Icon(
+          _useBackendApi ? Icons.cloud : Icons.storage,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        title: const Text('Use Backend API'),
+        subtitle: Text(
+          _useBackendApi 
+              ? 'Spielzüge werden vom Backend geladen' 
+              : 'Spielzüge werden lokal gespeichert',
+        ),
+        value: _useBackendApi,
+        onChanged: (bool value) async {
+          await _gameplayService.setUseBackend(value);
+          setState(() {
+            _useBackendApi = value;
+          });
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  value 
+                      ? 'Backend API aktiviert - Spielzüge werden vom Server geladen'
+                      : 'Backend API deaktiviert - Spielzüge werden lokal gespeichert',
+                ),
+                backgroundColor: value ? Colors.blue : Colors.grey,
+              ),
+            );
+          }
+        },
       ),
     );
   }
