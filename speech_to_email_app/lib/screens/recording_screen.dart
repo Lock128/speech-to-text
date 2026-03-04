@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:dio/dio.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../providers/recording_provider.dart';
+import '../providers/auth_provider.dart';
 import '../services/audio_recording_service.dart';
 import '../services/upload_service.dart';
 import '../services/status_service.dart';
@@ -18,6 +19,7 @@ import '../widgets/audio_player.dart';
 import '../widgets/settings_form.dart';
 import '../services/error_service.dart';
 import '../config/app_config.dart';
+import 'home_screen.dart';
 
 class RecordingScreen extends StatefulWidget {
   const RecordingScreen({super.key});
@@ -361,13 +363,13 @@ class _RecordingScreenState extends State<RecordingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('HC VfL Speech to Text'),
+        title: const Text('Upload Report'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           // Debug button for testing permissions
           if (kDebugMode)
             IconButton(
-              icon: const Icon(Icons.settings),
+              icon: const Icon(Icons.bug_report),
               onPressed: _testPermissions,
               tooltip: 'Test Permissions',
             ),
@@ -375,20 +377,28 @@ class _RecordingScreenState extends State<RecordingScreen> {
       ),
       body: Consumer<RecordingProvider>(
         builder: (context, provider, child) {
-          return SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.all(24.0),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight - 48, // Account for padding
-                    ),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
+          return Consumer<AuthProvider>(
+            builder: (context, authProvider, _) {
+              // Check if user is authenticated
+              if (!authProvider.isAuthenticated) {
+                return _buildUnauthenticatedView(context, authProvider);
+              }
+
+              // Show authenticated recording interface
+              return SafeArea(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.all(24.0),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight - 48, // Account for padding
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
                         // Logo
                         Image.asset(
                           'images/cropped-logo-maenner-1-150x113.webp',
@@ -551,8 +561,59 @@ class _RecordingScreenState extends State<RecordingScreen> {
                 );
               },
             ),
+              );
+            },
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildUnauthenticatedView(BuildContext context, AuthProvider authProvider) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.lock_outline,
+              size: 80,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Authentication Required',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              authProvider.selectedOrganization == null
+                  ? 'Please select an organization and enter your access key in Settings to use the upload feature.'
+                  : 'Please enter your access key in Settings to use the upload feature.',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: Colors.grey.shade600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () {
+                // Navigate to settings tab
+                final homeScreenState = context.findAncestorStateOfType<HomeScreenState>();
+                homeScreenState?.navigateToSettings();
+              },
+              icon: const Icon(Icons.settings),
+              label: const Text('Go to Settings'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

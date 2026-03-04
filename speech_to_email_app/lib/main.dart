@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/recording_provider.dart';
-import 'screens/recording_screen.dart';
+import 'providers/auth_provider.dart';
+import 'screens/home_screen.dart';
 
 void main() {
   runApp(const SpeechToEmailApp());
@@ -12,8 +13,11 @@ class SpeechToEmailApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => RecordingProvider(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => RecordingProvider()),
+        ChangeNotifierProvider(create: (context) => AuthProvider()),
+      ],
       child: MaterialApp(
         title: 'HC VfL Speech to Text',
         theme: ThemeData(
@@ -27,7 +31,7 @@ class SpeechToEmailApp extends StatelessWidget {
             elevation: 0,
           ),
         ),
-        home: const RecordingScreen(),
+        home: const HomeScreen(),
         debugShowCheckedModeBanner: false,
       ),
     );
