@@ -406,6 +406,7 @@ class _HandballPlayVisualizationState extends State<_HandballPlayVisualization> 
   double _animationSpeed = 1.0; // 1.0 = normal speed
   DefensiveFormation _selectedFormation = DefensiveFormation.sixZero;
   late HandballPlay _currentPlay;
+  int _currentActionIndex = 0;
 
   @override
   void initState() {
@@ -425,6 +426,14 @@ class _HandballPlayVisualizationState extends State<_HandballPlayVisualization> 
         defensiveFormation: formation,
       );
     });
+  }
+
+  void _onAnimationProgress(int actionIndex) {
+    if (mounted && _currentActionIndex != actionIndex) {
+      setState(() {
+        _currentActionIndex = actionIndex;
+      });
+    }
   }
 
   @override
@@ -461,6 +470,7 @@ class _HandballPlayVisualizationState extends State<_HandballPlayVisualization> 
                       onPressed: () {
                         setState(() {
                           _isAnimating = false;
+                          _currentActionIndex = 0;
                         });
                         Future.delayed(const Duration(milliseconds: 100), () {
                           if (mounted) {
@@ -483,6 +493,7 @@ class _HandballPlayVisualizationState extends State<_HandballPlayVisualization> 
               play: _currentPlay,
               isAnimating: _isAnimating,
               animationSpeed: _animationSpeed,
+              onAnimationProgress: _onAnimationProgress,
               onAnimationComplete: () {
                 if (mounted) {
                   setState(() {
@@ -503,6 +514,8 @@ class _HandballPlayVisualizationState extends State<_HandballPlayVisualization> 
               ),
               const SizedBox(height: 8),
             ],
+            _buildActionSteps(context),
+            const SizedBox(height: 16),
             _buildLegend(context),
             const SizedBox(height: 16),
             _buildSpeedControl(context),
@@ -591,6 +604,147 @@ class _HandballPlayVisualizationState extends State<_HandballPlayVisualization> 
         ),
       ],
     );
+  }
+
+  Widget _buildActionSteps(BuildContext context) {
+    if (_currentPlay.actions.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.list_alt,
+              size: 20,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Spielzug-Schritte',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ...List.generate(_currentPlay.actions.length, (index) {
+          final action = _currentPlay.actions[index];
+          final isActive = _isAnimating && index == _currentActionIndex;
+          final isCompleted = _isAnimating && index < _currentActionIndex;
+          
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 4.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? Theme.of(context).colorScheme.primary
+                        : isCompleted
+                            ? Colors.green
+                            : Colors.grey.shade300,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: isCompleted
+                        ? const Icon(Icons.check, size: 14, color: Colors.white)
+                        : Text(
+                            '${index + 1}',
+                            style: TextStyle(
+                              color: isActive ? Colors.white : Colors.grey.shade600,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          _getActionIcon(action.type),
+                          const SizedBox(width: 4),
+                          Text(
+                            _getActionTypeLabel(action.type),
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                              color: isActive
+                                  ? Theme.of(context).colorScheme.primary
+                                  : null,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (action.description != null)
+                        Text(
+                          action.description!,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.grey.shade700,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  Icon _getActionIcon(ActionType type) {
+    IconData iconData;
+    Color color;
+    
+    switch (type) {
+      case ActionType.pass:
+        iconData = Icons.arrow_forward;
+        color = Colors.blue;
+        break;
+      case ActionType.move:
+        iconData = Icons.directions_run;
+        color = Colors.green;
+        break;
+      case ActionType.shoot:
+        iconData = Icons.sports_handball;
+        color = Colors.orange;
+        break;
+      case ActionType.screen:
+        iconData = Icons.block;
+        color = Colors.purple;
+        break;
+      case ActionType.cut:
+        iconData = Icons.call_split;
+        color = Colors.teal;
+        break;
+    }
+    
+    return Icon(iconData, size: 14, color: color);
+  }
+
+  String _getActionTypeLabel(ActionType type) {
+    switch (type) {
+      case ActionType.pass:
+        return 'Pass';
+      case ActionType.move:
+        return 'Bewegung';
+      case ActionType.shoot:
+        return 'Wurf';
+      case ActionType.screen:
+        return 'Block';
+      case ActionType.cut:
+        return 'Schnitt';
+    }
   }
 
   Widget _buildLegend(BuildContext context) {

@@ -7,6 +7,7 @@ class HandballCourt extends StatefulWidget {
   final bool isAnimating;
   final double animationSpeed;
   final VoidCallback? onAnimationComplete;
+  final Function(int)? onAnimationProgress;
 
   const HandballCourt({
     super.key,
@@ -14,6 +15,7 @@ class HandballCourt extends StatefulWidget {
     this.isAnimating = false,
     this.animationSpeed = 1.0,
     this.onAnimationComplete,
+    this.onAnimationProgress,
   });
 
   @override
@@ -44,6 +46,8 @@ class _HandballCourtState extends State<HandballCourt> with TickerProviderStateM
           setState(() {
             _currentActionIndex++;
           });
+          // Notify parent of action progress
+          widget.onAnimationProgress?.call(_currentActionIndex);
           _executeAction(widget.play.actions[_currentActionIndex]);
         } else {
           widget.onAnimationComplete?.call();
@@ -140,6 +144,9 @@ class _HandballCourtState extends State<HandballCourt> with TickerProviderStateM
       _currentActionIndex = 0;
       _initializePositions();
     });
+    
+    // Notify parent of initial action
+    widget.onAnimationProgress?.call(0);
     
     if (widget.play.actions.isNotEmpty) {
       _executeAction(widget.play.actions[0]);
