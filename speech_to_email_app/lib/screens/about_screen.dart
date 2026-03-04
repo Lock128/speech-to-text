@@ -7,7 +7,7 @@ class AboutScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('About'),
+        title: const Text('Info'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: SafeArea(
@@ -34,7 +34,7 @@ class AboutScreen extends StatelessWidget {
               const SizedBox(height: 16),
               
               Text(
-                'Welcome to the HC VfL Speech to Text application!',
+                'Willkommen bei der HC VfL Speech to Text Anwendung!',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 24),
@@ -42,48 +42,48 @@ class AboutScreen extends StatelessWidget {
               _buildFeatureCard(
                 context,
                 icon: Icons.mic,
-                title: 'Voice Recording',
-                description: 'Record your speech messages directly from your device with high-quality audio capture.',
+                title: 'Sprachaufnahme',
+                description: 'Nehmen Sie Ihre Sprachnachrichten direkt von Ihrem Gerät mit hochwertiger Audioqualität auf.',
               ),
               const SizedBox(height: 16),
               
               _buildFeatureCard(
                 context,
                 icon: Icons.text_fields,
-                title: 'Transcription',
-                description: 'Automatically convert your voice recordings into accurate text transcriptions.',
+                title: 'Transkription',
+                description: 'Konvertieren Sie Ihre Sprachaufnahmen automatisch in präzise Texttranskriptionen.',
               ),
               const SizedBox(height: 16),
               
               _buildFeatureCard(
                 context,
                 icon: Icons.email,
-                title: 'Email Delivery',
-                description: 'Receive your transcriptions directly via email for easy access and sharing.',
+                title: 'E-Mail-Versand',
+                description: 'Erhalten Sie Ihre Transkriptionen direkt per E-Mail für einfachen Zugriff und Weitergabe.',
               ),
               const SizedBox(height: 16),
               
               _buildFeatureCard(
                 context,
                 icon: Icons.picture_as_pdf,
-                title: 'PDF Support',
-                description: 'Attach PDF files to enhance your reports with additional context.',
+                title: 'PDF-Unterstützung',
+                description: 'Fügen Sie PDF-Dateien hinzu, um Ihre Berichte mit zusätzlichem Kontext zu erweitern.',
               ),
               const SizedBox(height: 32),
               
               Text(
-                'How It Works',
+                'So funktioniert es',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 16),
               
-              _buildStep(context, 1, 'Navigate to the Upload tab'),
-              _buildStep(context, 2, 'Record your message using the microphone'),
-              _buildStep(context, 3, 'Review your recording'),
-              _buildStep(context, 4, 'Upload and send for transcription'),
-              _buildStep(context, 5, 'Receive the transcription via email'),
+              _buildStep(context, 1, 'Navigieren Sie zum Bericht-Tab'),
+              _buildStep(context, 2, 'Nehmen Sie Ihre Nachricht mit dem Mikrofon auf'),
+              _buildStep(context, 3, 'Überprüfen Sie Ihre Aufnahme'),
+              _buildStep(context, 4, 'Laden Sie die Aufnahme hoch und senden Sie sie zur Transkription'),
+              _buildStep(context, 5, 'Erhalten Sie die Transkription per E-Mail'),
               
               const SizedBox(height: 32),
               

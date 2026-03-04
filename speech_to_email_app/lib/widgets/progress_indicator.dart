@@ -33,31 +33,31 @@ class ProcessingProgressIndicator extends StatelessWidget {
   Widget _buildProgressSteps(BuildContext context) {
     final steps = [
       _ProgressStep(
-        title: 'Recording',
+        title: 'Aufnahme',
         icon: Icons.mic,
         isCompleted: _isStepCompleted(0),
         isActive: _isStepActive(0),
       ),
       _ProgressStep(
-        title: 'Uploading',
+        title: 'Hochladen',
         icon: Icons.cloud_upload,
         isCompleted: _isStepCompleted(1),
         isActive: _isStepActive(1),
       ),
       _ProgressStep(
-        title: 'Transcribing',
+        title: 'Transkription',
         icon: Icons.psychology,
         isCompleted: _isStepCompleted(2),
         isActive: _isStepActive(2),
       ),
       _ProgressStep(
-        title: 'AI Article',
+        title: 'KI-Artikel',
         icon: Icons.auto_awesome,
         isCompleted: _isStepCompleted(3),
         isActive: _isStepActive(3),
       ),
       _ProgressStep(
-        title: 'Email Sent',
+        title: 'E-Mail gesendet',
         icon: Icons.email,
         isCompleted: _isStepCompleted(4),
         isActive: _isStepActive(4),
@@ -163,7 +163,7 @@ class ProcessingProgressIndicator extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Uploading your recording...',
+                  'Ihre Aufnahme wird hochgeladen...',
                   style: TextStyle(
                     color: Colors.blue.shade700,
                     fontWeight: FontWeight.w500,
@@ -180,7 +180,7 @@ class ProcessingProgressIndicator extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '${(uploadProgress * 100).toInt()}% complete',
+            '${(uploadProgress * 100).toInt()}% abgeschlossen',
             style: TextStyle(
               color: Colors.blue.shade600,
               fontSize: 12,
@@ -214,7 +214,7 @@ class ProcessingProgressIndicator extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Processing with AI...',
+                  'Verarbeitung mit KI...',
                   style: TextStyle(
                     color: Colors.purple.shade700,
                     fontWeight: FontWeight.w500,
@@ -225,7 +225,7 @@ class ProcessingProgressIndicator extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Converting speech to text and creating newspaper article',
+            'Sprache wird in Text umgewandelt und Zeitungsartikel wird erstellt',
             style: TextStyle(
               color: Colors.purple.shade600,
               fontSize: 12,
@@ -250,7 +250,7 @@ class ProcessingProgressIndicator extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    'Retry attempt $retryCount/5',
+                    'Wiederholungsversuch $retryCount/5',
                     style: TextStyle(
                       color: Colors.orange.shade700,
                       fontSize: 11,
@@ -283,7 +283,7 @@ class ProcessingProgressIndicator extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Email sent successfully!',
+                  'E-Mail erfolgreich gesendet!',
                   style: TextStyle(
                     color: Colors.green.shade700,
                     fontWeight: FontWeight.w500,
@@ -296,7 +296,7 @@ class ProcessingProgressIndicator extends StatelessWidget {
           if (transcriptionText != null) ...[
             const SizedBox(height: 12),
             Text(
-              'Transcription:',
+              'Transkription:',
               style: TextStyle(
                 color: Colors.green.shade700,
                 fontWeight: FontWeight.w500,

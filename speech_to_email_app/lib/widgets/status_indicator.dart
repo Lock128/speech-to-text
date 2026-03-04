@@ -161,14 +161,14 @@ class StatusIndicator extends StatelessWidget {
 
   String _getStatusText() {
     final baseText = switch (state) {
-      RecordingState.idle => 'Ready to Record',
-      RecordingState.recording => 'Recording...',
-      RecordingState.stopped => 'Recording Stopped',
-      RecordingState.reviewing => 'Review Recording',
-      RecordingState.uploading => 'Uploading...',
-      RecordingState.processing => 'Processing Speech...',
-      RecordingState.completed => 'Email Sent!',
-      RecordingState.error => 'Error Occurred',
+      RecordingState.idle => 'Bereit zur Aufnahme',
+      RecordingState.recording => 'Aufnahme läuft...',
+      RecordingState.stopped => 'Aufnahme gestoppt',
+      RecordingState.reviewing => 'Aufnahme überprüfen',
+      RecordingState.uploading => 'Wird hochgeladen...',
+      RecordingState.processing => 'Sprache wird verarbeitet...',
+      RecordingState.completed => 'E-Mail gesendet!',
+      RecordingState.error => 'Fehler aufgetreten',
     };
     
     // Add demo mode indicator for processing states

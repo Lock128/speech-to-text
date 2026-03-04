@@ -45,22 +45,22 @@ class HomeScreenState extends State<HomeScreen> {
           NavigationDestination(
             icon: Icon(Icons.info_outline),
             selectedIcon: Icon(Icons.info),
-            label: 'About',
+            label: 'Info',
           ),
           NavigationDestination(
             icon: Icon(Icons.mic_none),
             selectedIcon: Icon(Icons.mic),
-            label: 'Upload',
+            label: 'Bericht',
           ),
           NavigationDestination(
             icon: Icon(Icons.sports_esports_outlined),
             selectedIcon: Icon(Icons.sports_esports),
-            label: 'Gameplay',
+            label: 'Spielzüge',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings),
-            label: 'Settings',
+            label: 'Einstellungen',
           ),
         ],
       ),

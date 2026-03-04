@@ -58,7 +58,7 @@ class RecordingButton extends StatelessWidget {
               if (state == RecordingState.recording || state == RecordingState.stopped)
                 _ActionButton(
                   icon: Icons.close,
-                  label: 'Cancel',
+                  label: 'Abbrechen',
                   color: Colors.grey,
                   onPressed: onCancelRecording,
                 ),
@@ -67,7 +67,7 @@ class RecordingButton extends StatelessWidget {
               if (state == RecordingState.stopped)
                 _ActionButton(
                   icon: Icons.cloud_upload,
-                  label: 'Upload',
+                  label: 'Hochladen',
                   color: Colors.blue,
                   onPressed: onUploadRecording,
                 ),
@@ -142,21 +142,21 @@ class RecordingButton extends StatelessWidget {
   String _getStatusText() {
     switch (state) {
       case RecordingState.idle:
-        return 'Tap to start recording';
+        return 'Tippen Sie, um die Aufnahme zu starten';
       case RecordingState.recording:
-        return 'Recording... Tap to stop';
+        return 'Aufnahme läuft... Tippen Sie zum Stoppen';
       case RecordingState.stopped:
-        return 'Recording complete';
+        return 'Aufnahme abgeschlossen';
       case RecordingState.reviewing:
-        return 'Review your recording';
+        return 'Überprüfen Sie Ihre Aufnahme';
       case RecordingState.uploading:
-        return 'Uploading...';
+        return 'Wird hochgeladen...';
       case RecordingState.processing:
-        return 'Processing speech...';
+        return 'Sprache wird verarbeitet...';
       case RecordingState.completed:
-        return 'Email sent successfully!';
+        return 'E-Mail erfolgreich gesendet!';
       case RecordingState.error:
-        return 'Error occurred';
+        return 'Fehler aufgetreten';
     }
   }
 }

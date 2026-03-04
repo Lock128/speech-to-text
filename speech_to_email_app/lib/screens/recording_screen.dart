@@ -95,26 +95,26 @@ class _RecordingScreenState extends State<RecordingScreen> {
       barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Microphone Permission Required'),
+          title: const Text('Mikrofon-Berechtigung erforderlich'),
           content: const Text(
-            'This app needs access to your microphone to record speech messages. '
-            'Please grant microphone permission to continue.',
+            'Diese App benötigt Zugriff auf Ihr Mikrofon, um Sprachnachrichten aufzunehmen. '
+            'Bitte erteilen Sie die Mikrofon-Berechtigung, um fortzufahren.',
           ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
                 final provider = context.read<RecordingProvider>();
-                provider.setError('Microphone permission denied. Recording is not available.');
+                provider.setError('Mikrofon-Berechtigung verweigert. Aufnahme ist nicht verfügbar.');
               },
-              child: const Text('Cancel'),
+              child: const Text('Abbrechen'),
             ),
             TextButton(
               onPressed: () async {
                 Navigator.of(context).pop();
                 await _testPermissions();
               },
-              child: const Text('Grant Permission'),
+              child: const Text('Berechtigung erteilen'),
             ),
           ],
         );
@@ -146,9 +146,9 @@ class _RecordingScreenState extends State<RecordingScreen> {
       if (mounted) {
         final provider = context.read<RecordingProvider>();
         if (requestResult.isGranted || audioServiceResult) {
-          provider.setError('Permission granted! You can now record.');
+          provider.setError('Berechtigung erteilt! Sie können jetzt aufnehmen.');
         } else {
-          provider.setError('Permission still denied. Status: $newStatus');
+          provider.setError('Berechtigung weiterhin verweigert. Status: $newStatus');
         }
       }
       
@@ -156,7 +156,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
       debugPrint('Error in permission test: $e');
       if (mounted) {
         final provider = context.read<RecordingProvider>();
-        provider.setError('Permission test failed: $e');
+        provider.setError('Berechtigungstest fehlgeschlagen: $e');
       }
     }
   }
@@ -204,10 +204,10 @@ class _RecordingScreenState extends State<RecordingScreen> {
     try {
       final success = await _audioService.startRecording();
       if (!success) {
-        provider.setError('Failed to start recording. Please check microphone permissions.');
+        provider.setError('Aufnahme konnte nicht gestartet werden. Bitte überprüfen Sie die Mikrofon-Berechtigungen.');
       }
     } catch (e) {
-      provider.setError('Error starting recording: $e');
+      provider.setError('Fehler beim Starten der Aufnahme: $e');
     }
   }
 
@@ -220,10 +220,10 @@ class _RecordingScreenState extends State<RecordingScreen> {
         provider.setRecordingPath(recordingPath);
         provider.updateState(RecordingState.reviewing);
       } else {
-        provider.setError('Failed to stop recording');
+        provider.setError('Aufnahme konnte nicht gestoppt werden');
       }
     } catch (e) {
-      provider.setError('Error stopping recording: $e');
+      provider.setError('Fehler beim Stoppen der Aufnahme: $e');
     }
   }
 
@@ -244,7 +244,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
       });
       provider.reset();
     } catch (e) {
-      provider.setError('Error canceling recording: $e');
+      provider.setError('Fehler beim Abbrechen der Aufnahme: $e');
     }
   }
 
@@ -252,7 +252,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
     final provider = context.read<RecordingProvider>();
     
     if (provider.recordingPath == null) {
-      provider.setError('No recording to upload');
+      provider.setError('Keine Aufnahme zum Hochladen vorhanden');
       return;
     }
 
@@ -260,7 +260,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
       // Validate file before upload
       final isValid = await _uploadService.validateFile(provider.recordingPath!);
       if (!isValid) {
-        provider.setError('Invalid audio file. Please record again.');
+        provider.setError('Ungültige Audiodatei. Bitte nehmen Sie erneut auf.');
         return;
       }
 
@@ -294,7 +294,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
           if (provider.state == RecordingState.processing) {
             _statusService.stopPolling();
             provider.updateState(RecordingState.completed);
-            provider.setTranscriptionText('Processing completed successfully! Check your email for the transcription.');
+            provider.setTranscriptionText('Verarbeitung erfolgreich abgeschlossen! Überprüfen Sie Ihre E-Mail für die Transkription.');
           }
         }
       });
@@ -303,7 +303,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
       if (e.toString().contains('cancelled')) {
         provider.updateState(RecordingState.reviewing);
       } else {
-        provider.setError('Upload failed: $e');
+        provider.setError('Upload fehlgeschlagen: $e');
         // Note: setError preserves the recording path so user can still review audio
       }
     }
@@ -338,7 +338,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
             break;
           case ProcessingStatus.failed:
             _processingTimeoutTimer?.cancel();
-            provider.setError('Processing failed: ${status.errorMessage ?? 'Unknown error'}');
+            provider.setError('Verarbeitung fehlgeschlagen: ${status.errorMessage ?? 'Unbekannter Fehler'}');
             break;
         }
       },
@@ -347,7 +347,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
         
         // Show error to user if polling fails
         _processingTimeoutTimer?.cancel();
-        provider.setError('Unable to check processing status. Your recording may still be processing in the background. Please check your email.');
+        provider.setError('Status der Verarbeitung kann nicht überprüft werden. Ihre Aufnahme wird möglicherweise noch im Hintergrund verarbeitet. Bitte überprüfen Sie Ihre E-Mail.');
       },
       onDone: () {
         if (!mounted) return;
@@ -356,7 +356,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
         if (provider.state == RecordingState.processing) {
           _processingTimeoutTimer?.cancel();
           provider.updateState(RecordingState.completed);
-          provider.setTranscriptionText('Processing completed successfully! Check your email for the transcription.');
+          provider.setTranscriptionText('Verarbeitung erfolgreich abgeschlossen! Überprüfen Sie Ihre E-Mail für die Transkription.');
         }
       },
     );
@@ -366,7 +366,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Upload Report'),
+        title: const Text('Bericht hochladen'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           // Debug button for testing permissions
@@ -374,7 +374,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
             IconButton(
               icon: const Icon(Icons.bug_report),
               onPressed: _testPermissions,
-              tooltip: 'Test Permissions',
+              tooltip: 'Berechtigungen testen',
             ),
         ],
       ),
@@ -471,7 +471,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
                                   provider.reset();
                                 },
                                 icon: const Icon(Icons.refresh),
-                                label: const Text('Record New'),
+                                label: const Text('Neue Aufnahme'),
                                 style: OutlinedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                                 ),
@@ -479,7 +479,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
                               ElevatedButton.icon(
                                 onPressed: _uploadRecording,
                                 icon: const Icon(Icons.cloud_upload),
-                                label: const Text('Upload & Send'),
+                                label: const Text('Hochladen & Senden'),
                                 style: ElevatedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                                 ),
@@ -517,7 +517,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
                                   provider.reset();
                                 },
                                 icon: const Icon(Icons.refresh),
-                                label: const Text('Start Over'),
+                                label: const Text('Von vorne beginnen'),
                                 style: OutlinedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                                 ),
@@ -526,7 +526,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
                                 ElevatedButton.icon(
                                   onPressed: _handleErrorRetry,
                                   icon: const Icon(Icons.replay),
-                                  label: const Text('Try Again'),
+                                  label: const Text('Erneut versuchen'),
                                   style: ElevatedButton.styleFrom(
                                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                                   ),
@@ -557,7 +557,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
                                 provider.reset();
                               },
                               icon: const Icon(Icons.mic),
-                              label: const Text('Record New'),
+                              label: const Text('Neue Aufnahme'),
                               style: OutlinedButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                               ),
@@ -566,7 +566,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
                             ElevatedButton.icon(
                               onPressed: () => provider.reset(),
                               icon: const Icon(Icons.mic),
-                              label: const Text('Record Another'),
+                              label: const Text('Weitere Aufnahme'),
                               style: ElevatedButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                               ),
@@ -602,7 +602,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              'Authentication Required',
+              'Authentifizierung erforderlich',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -611,8 +611,8 @@ class _RecordingScreenState extends State<RecordingScreen> {
             const SizedBox(height: 16),
             Text(
               authProvider.selectedOrganization == null
-                  ? 'Please select an organization and enter your access key in Settings to use the upload feature.'
-                  : 'Please enter your access key in Settings to use the upload feature.',
+                  ? 'Bitte wählen Sie eine Organisation aus und geben Sie Ihren Zugangscode in den Einstellungen ein, um die Upload-Funktion zu nutzen.'
+                  : 'Bitte geben Sie Ihren Zugangscode in den Einstellungen ein, um die Upload-Funktion zu nutzen.',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: Colors.grey.shade600,
               ),
@@ -626,7 +626,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
                 homeScreenState?.navigateToSettings();
               },
               icon: const Icon(Icons.settings),
-              label: const Text('Go to Settings'),
+              label: const Text('Zu Einstellungen'),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               ),

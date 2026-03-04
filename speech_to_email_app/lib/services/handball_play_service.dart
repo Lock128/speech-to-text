@@ -2,25 +2,23 @@ import 'package:flutter/material.dart';
 import '../models/handball_models.dart';
 
 class HandballPlayService {
-  // Sample plays for demonstration
   static HandballPlay getDefaultPlay(String playName) {
     switch (playName) {
-      case 'Angriff Links':
-        return _createAngriffLinks();
-      case 'Angriff Rechts':
-        return _createAngriffRechts();
-      case 'Konter Mitte':
-        return _createKonterMitte();
-      case 'Tempogegenstoß':
-        return _createTempogegenstoss();
-      case 'Kreis Anspiel':
-        return _createKreisAnspiel();
+      case 'Leer 1':
+        return _createLeer1();
+      case 'Leer 2':
+        return _createLeer2();
+      case '10-1':
+        return _create10_1();
+      case '10-2':
+        return _create10_2();
       default:
         return _createDefaultPlay(playName);
     }
   }
 
-  static HandballPlay _createAngriffLinks() {
+  static HandballPlay _create10_1() {
+    // 10-1 - Spielzug über links mit Kreissperre
     final attackingPlayers = [
       const Player(
         id: 'a1',
@@ -114,48 +112,97 @@ class HandballPlayService {
     final actions = [
       const PlayAction(
         id: 'act1',
+        type: ActionType.pass,
+        playerId: 'a5',
+        targetPlayerId: 'a4',
+        sequenceNumber: 1,
+        description: 'Pass von RW zu RR',
+      ),
+      const PlayAction(
+        id: 'act2',
+        type: ActionType.pass,
+        playerId: 'a4',
+        targetPlayerId: 'a3',
+        sequenceNumber: 2,
+        description: 'Pass von RR zu RM',
+      ),
+      const PlayAction(
+        id: 'act3',
         type: ActionType.pass,
         playerId: 'a3',
         targetPlayerId: 'a2',
-        sequenceNumber: 1,
+        sequenceNumber: 3,
         description: 'Pass von RM zu LR',
       ),
       const PlayAction(
-        id: 'act2',
-        type: ActionType.move,
-        playerId: 'a1',
-        targetPosition: Offset(0.15, 0.25),
-        sequenceNumber: 2,
-        description: 'LW schneidet nach innen',
-      ),
-      const PlayAction(
-        id: 'act3',
+        id: 'act4',
         type: ActionType.pass,
         playerId: 'a2',
         targetPlayerId: 'a1',
-        sequenceNumber: 3,
-        description: 'Pass zu LW',
+        sequenceNumber: 4,
+        description: 'Pass von LR zu LW',
       ),
       const PlayAction(
-        id: 'act4',
-        type: ActionType.shoot,
+        id: 'act5',
+        type: ActionType.pass,
         playerId: 'a1',
-        sequenceNumber: 4,
+        targetPlayerId: 'a2',
+        sequenceNumber: 5,
+        description: 'Pass von LW zurück zu LR',
+      ),
+      const PlayAction(
+        id: 'act6',
+        type: ActionType.pass,
+        playerId: 'a2',
+        targetPlayerId: 'a3',
+        sequenceNumber: 6,
+        description: 'Pass von LR zu RM',
+      ),
+      const PlayAction(
+        id: 'act7',
+        type: ActionType.screen,
+        playerId: 'a6',
+        targetPosition: Offset(0.35, 0.28),
+        sequenceNumber: 7,
+        description: 'KM stellt Sperre für LR',
+      ),
+      const PlayAction(
+        id: 'act8',
+        type: ActionType.pass,
+        playerId: 'a3',
+        targetPlayerId: 'a2',
+        sequenceNumber: 8,
+        description: 'Pass von RM zurück zu LR',
+      ),
+      const PlayAction(
+        id: 'act9',
+        type: ActionType.move,
+        playerId: 'a2',
+        targetPosition: Offset(0.3, 0.25),
+        sequenceNumber: 9,
+        description: 'LR nutzt Sperre und stößt durch',
+      ),
+      const PlayAction(
+        id: 'act10',
+        type: ActionType.shoot,
+        playerId: 'a2',
+        sequenceNumber: 10,
         description: 'Wurf aufs Tor',
       ),
     ];
 
     return HandballPlay(
-      id: 'play_angriff_links',
-      name: 'Angriff Links',
+      id: 'play_10_1',
+      name: '10-1',
       attackingPlayers: attackingPlayers,
       defendingPlayers: defendingPlayers,
       actions: actions,
-      description: 'Angriff über die linke Seite mit Schnittbewegung',
+      description: 'Spielzug über links mit Kreissperre',
     );
   }
 
-  static HandballPlay _createAngriffRechts() {
+  static HandballPlay _create10_2() {
+    // 10-2 - Spielzug über rechts mit Kreissperre (Spiegelbild)
     final attackingPlayers = [
       const Player(
         id: 'a1',
@@ -250,205 +297,104 @@ class HandballPlayService {
       const PlayAction(
         id: 'act1',
         type: ActionType.pass,
+        playerId: 'a1',
+        targetPlayerId: 'a2',
+        sequenceNumber: 1,
+        description: 'Pass von LW zu LR',
+      ),
+      const PlayAction(
+        id: 'act2',
+        type: ActionType.pass,
+        playerId: 'a2',
+        targetPlayerId: 'a3',
+        sequenceNumber: 2,
+        description: 'Pass von LR zu RM',
+      ),
+      const PlayAction(
+        id: 'act3',
+        type: ActionType.pass,
         playerId: 'a3',
         targetPlayerId: 'a4',
-        sequenceNumber: 1,
+        sequenceNumber: 3,
         description: 'Pass von RM zu RR',
       ),
       const PlayAction(
-        id: 'act2',
-        type: ActionType.move,
-        playerId: 'a5',
-        targetPosition: Offset(0.85, 0.25),
-        sequenceNumber: 2,
-        description: 'RW schneidet nach innen',
-      ),
-      const PlayAction(
-        id: 'act3',
+        id: 'act4',
         type: ActionType.pass,
         playerId: 'a4',
         targetPlayerId: 'a5',
-        sequenceNumber: 3,
-        description: 'Pass zu RW',
-      ),
-      const PlayAction(
-        id: 'act4',
-        type: ActionType.shoot,
-        playerId: 'a5',
         sequenceNumber: 4,
-        description: 'Wurf aufs Tor',
-      ),
-    ];
-
-    return HandballPlay(
-      id: 'play_angriff_rechts',
-      name: 'Angriff Rechts',
-      attackingPlayers: attackingPlayers,
-      defendingPlayers: defendingPlayers,
-      actions: actions,
-      description: 'Angriff über die rechte Seite',
-    );
-  }
-
-  static HandballPlay _createKonterMitte() {
-    final attackingPlayers = [
-      const Player(
-        id: 'a1',
-        name: 'LW',
-        position: PlayerPosition.leftWing,
-        initialPosition: Offset(0.1, 0.6),
-        color: Colors.blue,
-      ),
-      const Player(
-        id: 'a3',
-        name: 'RM',
-        position: PlayerPosition.centerBack,
-        initialPosition: Offset(0.5, 0.7),
-        color: Colors.blue,
-      ),
-      const Player(
-        id: 'a5',
-        name: 'RW',
-        position: PlayerPosition.rightWing,
-        initialPosition: Offset(0.9, 0.6),
-        color: Colors.blue,
-      ),
-    ];
-
-    final defendingPlayers = [
-      const Player(
-        id: 'd3',
-        name: 'D3',
-        position: PlayerPosition.defCenterLeft,
-        initialPosition: Offset(0.45, 0.4),
-        color: Colors.red,
-      ),
-      const Player(
-        id: 'd4',
-        name: 'D4',
-        position: PlayerPosition.defCenterRight,
-        initialPosition: Offset(0.55, 0.4),
-        color: Colors.red,
-      ),
-    ];
-
-    final actions = [
-      const PlayAction(
-        id: 'act1',
-        type: ActionType.move,
-        playerId: 'a3',
-        targetPosition: Offset(0.5, 0.4),
-        sequenceNumber: 1,
-        description: 'RM läuft nach vorne',
+        description: 'Pass von RR zu RW',
       ),
       const PlayAction(
-        id: 'act2',
-        type: ActionType.move,
-        playerId: 'a3',
-        targetPosition: Offset(0.5, 0.25),
-        sequenceNumber: 2,
-        description: 'RM durchbricht Abwehr',
+        id: 'act5',
+        type: ActionType.pass,
+        playerId: 'a5',
+        targetPlayerId: 'a4',
+        sequenceNumber: 5,
+        description: 'Pass von RW zurück zu RR',
       ),
       const PlayAction(
-        id: 'act3',
-        type: ActionType.shoot,
-        playerId: 'a3',
-        sequenceNumber: 3,
-        description: 'Wurf aufs Tor',
-      ),
-    ];
-
-    return HandballPlay(
-      id: 'play_konter_mitte',
-      name: 'Konter Mitte',
-      attackingPlayers: attackingPlayers,
-      defendingPlayers: defendingPlayers,
-      actions: actions,
-      description: 'Schneller Konter durch die Mitte',
-    );
-  }
-
-  static HandballPlay _createTempogegenstoss() {
-    final attackingPlayers = [
-      const Player(
-        id: 'a1',
-        name: 'LW',
-        position: PlayerPosition.leftWing,
-        initialPosition: Offset(0.2, 0.8),
-        color: Colors.blue,
-      ),
-      const Player(
-        id: 'a3',
-        name: 'RM',
-        position: PlayerPosition.centerBack,
-        initialPosition: Offset(0.5, 0.9),
-        color: Colors.blue,
-      ),
-      const Player(
-        id: 'a5',
-        name: 'RW',
-        position: PlayerPosition.rightWing,
-        initialPosition: Offset(0.8, 0.8),
-        color: Colors.blue,
-      ),
-    ];
-
-    final defendingPlayers = [
-      const Player(
-        id: 'd1',
-        name: 'D1',
-        position: PlayerPosition.defLeftWing,
-        initialPosition: Offset(0.3, 0.5),
-        color: Colors.red,
-      ),
-    ];
-
-    final actions = [
-      const PlayAction(
-        id: 'act1',
-        type: ActionType.move,
-        playerId: 'a1',
-        targetPosition: Offset(0.15, 0.4),
-        sequenceNumber: 1,
-        description: 'LW sprintet nach vorne',
+        id: 'act6',
+        type: ActionType.pass,
+        playerId: 'a4',
+        targetPlayerId: 'a3',
+        sequenceNumber: 6,
+        description: 'Pass von RR zu RM',
       ),
       const PlayAction(
-        id: 'act2',
+        id: 'act7',
+        type: ActionType.screen,
+        playerId: 'a6',
+        targetPosition: Offset(0.65, 0.28),
+        sequenceNumber: 7,
+        description: 'KM stellt Sperre für RR',
+      ),
+      const PlayAction(
+        id: 'act8',
         type: ActionType.pass,
         playerId: 'a3',
-        targetPlayerId: 'a1',
-        sequenceNumber: 2,
-        description: 'Langer Pass zu LW',
+        targetPlayerId: 'a4',
+        sequenceNumber: 8,
+        description: 'Pass von RM zurück zu RR',
       ),
       const PlayAction(
-        id: 'act3',
+        id: 'act9',
         type: ActionType.move,
-        playerId: 'a1',
-        targetPosition: Offset(0.2, 0.15),
-        sequenceNumber: 3,
-        description: 'LW läuft aufs Tor',
+        playerId: 'a4',
+        targetPosition: Offset(0.7, 0.25),
+        sequenceNumber: 9,
+        description: 'RR nutzt Sperre und stößt durch',
       ),
       const PlayAction(
-        id: 'act4',
+        id: 'act10',
         type: ActionType.shoot,
-        playerId: 'a1',
-        sequenceNumber: 4,
+        playerId: 'a4',
+        sequenceNumber: 10,
         description: 'Wurf aufs Tor',
       ),
     ];
 
     return HandballPlay(
-      id: 'play_tempogegenstoss',
-      name: 'Tempogegenstoß',
+      id: 'play_10_2',
+      name: '10-2',
       attackingPlayers: attackingPlayers,
       defendingPlayers: defendingPlayers,
       actions: actions,
-      description: 'Schneller Gegenstoß mit langem Pass',
+      description: 'Spielzug über rechts mit Kreissperre',
     );
   }
 
-  static HandballPlay _createKreisAnspiel() {
+  static HandballPlay _createLeer1() {
+    // Leer 1 - Kreuztausch auf der linken Seite
     final attackingPlayers = [
+      const Player(
+        id: 'a1',
+        name: 'LW',
+        position: PlayerPosition.leftWing,
+        initialPosition: Offset(0.1, 0.35),
+        color: Colors.blue,
+      ),
       const Player(
         id: 'a2',
         name: 'LR',
@@ -471,6 +417,13 @@ class HandballPlayService {
         color: Colors.blue,
       ),
       const Player(
+        id: 'a5',
+        name: 'RW',
+        position: PlayerPosition.rightWing,
+        initialPosition: Offset(0.9, 0.35),
+        color: Colors.blue,
+      ),
+      const Player(
         id: 'a6',
         name: 'KM',
         position: PlayerPosition.pivot,
@@ -480,6 +433,13 @@ class HandballPlayService {
     ];
 
     final defendingPlayers = [
+      const Player(
+        id: 'd1',
+        name: 'D1',
+        position: PlayerPosition.defLeftWing,
+        initialPosition: Offset(0.15, 0.25),
+        color: Colors.red,
+      ),
       const Player(
         id: 'd2',
         name: 'D2',
@@ -508,41 +468,240 @@ class HandballPlayService {
         initialPosition: Offset(0.7, 0.28),
         color: Colors.red,
       ),
+      const Player(
+        id: 'd6',
+        name: 'D6',
+        position: PlayerPosition.defRightWing,
+        initialPosition: Offset(0.85, 0.25),
+        color: Colors.red,
+      ),
     ];
 
     final actions = [
       const PlayAction(
         id: 'act1',
-        type: ActionType.move,
-        playerId: 'a6',
-        targetPosition: Offset(0.4, 0.18),
+        type: ActionType.pass,
+        playerId: 'a2',
+        targetPlayerId: 'a3',
         sequenceNumber: 1,
-        description: 'KM bewegt sich nach links',
+        description: 'Pass von LR zu RM',
       ),
       const PlayAction(
         id: 'act2',
         type: ActionType.pass,
         playerId: 'a3',
-        targetPlayerId: 'a6',
+        targetPlayerId: 'a2',
         sequenceNumber: 2,
-        description: 'Pass zu KM',
+        description: 'Pass zurück von RM zu LR',
       ),
       const PlayAction(
         id: 'act3',
-        type: ActionType.shoot,
-        playerId: 'a6',
+        type: ActionType.move,
+        playerId: 'a3',
+        targetPosition: Offset(0.75, 0.48),
         sequenceNumber: 3,
-        description: 'Wurf vom Kreis',
+        description: 'RM läuft nach halb rechts',
+      ),
+      const PlayAction(
+        id: 'act4',
+        type: ActionType.move,
+        playerId: 'a4',
+        targetPosition: Offset(0.5, 0.5),
+        sequenceNumber: 4,
+        description: 'RR läuft zur Mitte (Kreuztausch)',
+      ),
+      const PlayAction(
+        id: 'act5',
+        type: ActionType.pass,
+        playerId: 'a2',
+        targetPlayerId: 'a4',
+        sequenceNumber: 5,
+        description: 'Pass von LR zum neuen RM (ehemals RR)',
+      ),
+      const PlayAction(
+        id: 'act6',
+        type: ActionType.move,
+        playerId: 'a4',
+        targetPosition: Offset(0.5, 0.35),
+        sequenceNumber: 6,
+        description: 'Neuer RM durchstößt nach vorne',
+      ),
+      const PlayAction(
+        id: 'act7',
+        type: ActionType.shoot,
+        playerId: 'a4',
+        sequenceNumber: 7,
+        description: 'Wurf aufs Tor',
       ),
     ];
 
     return HandballPlay(
-      id: 'play_kreis_anspiel',
-      name: 'Kreis Anspiel',
+      id: 'play_leer_1',
+      name: 'Leer 1',
       attackingPlayers: attackingPlayers,
       defendingPlayers: defendingPlayers,
       actions: actions,
-      description: 'Anspiel zum Kreisläufer',
+      description: 'Kreuztausch über links mit Durchstoß',
+    );
+  }
+
+  static HandballPlay _createLeer2() {
+    // Leer 2 - Kreuztausch auf der rechten Seite
+    final attackingPlayers = [
+      const Player(
+        id: 'a1',
+        name: 'LW',
+        position: PlayerPosition.leftWing,
+        initialPosition: Offset(0.1, 0.35),
+        color: Colors.blue,
+      ),
+      const Player(
+        id: 'a2',
+        name: 'LR',
+        position: PlayerPosition.leftBack,
+        initialPosition: Offset(0.25, 0.45),
+        color: Colors.blue,
+      ),
+      const Player(
+        id: 'a3',
+        name: 'RM',
+        position: PlayerPosition.centerBack,
+        initialPosition: Offset(0.5, 0.5),
+        color: Colors.blue,
+      ),
+      const Player(
+        id: 'a4',
+        name: 'RR',
+        position: PlayerPosition.rightBack,
+        initialPosition: Offset(0.75, 0.45),
+        color: Colors.blue,
+      ),
+      const Player(
+        id: 'a5',
+        name: 'RW',
+        position: PlayerPosition.rightWing,
+        initialPosition: Offset(0.9, 0.35),
+        color: Colors.blue,
+      ),
+      const Player(
+        id: 'a6',
+        name: 'KM',
+        position: PlayerPosition.pivot,
+        initialPosition: Offset(0.5, 0.2),
+        color: Colors.blue,
+      ),
+    ];
+
+    final defendingPlayers = [
+      const Player(
+        id: 'd1',
+        name: 'D1',
+        position: PlayerPosition.defLeftWing,
+        initialPosition: Offset(0.15, 0.25),
+        color: Colors.red,
+      ),
+      const Player(
+        id: 'd2',
+        name: 'D2',
+        position: PlayerPosition.defLeftBack,
+        initialPosition: Offset(0.3, 0.28),
+        color: Colors.red,
+      ),
+      const Player(
+        id: 'd3',
+        name: 'D3',
+        position: PlayerPosition.defCenterLeft,
+        initialPosition: Offset(0.45, 0.3),
+        color: Colors.red,
+      ),
+      const Player(
+        id: 'd4',
+        name: 'D4',
+        position: PlayerPosition.defCenterRight,
+        initialPosition: Offset(0.55, 0.3),
+        color: Colors.red,
+      ),
+      const Player(
+        id: 'd5',
+        name: 'D5',
+        position: PlayerPosition.defRightBack,
+        initialPosition: Offset(0.7, 0.28),
+        color: Colors.red,
+      ),
+      const Player(
+        id: 'd6',
+        name: 'D6',
+        position: PlayerPosition.defRightWing,
+        initialPosition: Offset(0.85, 0.25),
+        color: Colors.red,
+      ),
+    ];
+
+    final actions = [
+      const PlayAction(
+        id: 'act1',
+        type: ActionType.pass,
+        playerId: 'a4',
+        targetPlayerId: 'a3',
+        sequenceNumber: 1,
+        description: 'Pass von RR zu RM',
+      ),
+      const PlayAction(
+        id: 'act2',
+        type: ActionType.pass,
+        playerId: 'a3',
+        targetPlayerId: 'a4',
+        sequenceNumber: 2,
+        description: 'Pass zurück von RM zu RR',
+      ),
+      const PlayAction(
+        id: 'act3',
+        type: ActionType.move,
+        playerId: 'a3',
+        targetPosition: Offset(0.25, 0.48),
+        sequenceNumber: 3,
+        description: 'RM läuft nach halb links',
+      ),
+      const PlayAction(
+        id: 'act4',
+        type: ActionType.move,
+        playerId: 'a2',
+        targetPosition: Offset(0.5, 0.5),
+        sequenceNumber: 4,
+        description: 'LR läuft zur Mitte (Kreuztausch)',
+      ),
+      const PlayAction(
+        id: 'act5',
+        type: ActionType.pass,
+        playerId: 'a4',
+        targetPlayerId: 'a2',
+        sequenceNumber: 5,
+        description: 'Pass von RR zum neuen RM (ehemals LR)',
+      ),
+      const PlayAction(
+        id: 'act6',
+        type: ActionType.move,
+        playerId: 'a2',
+        targetPosition: Offset(0.5, 0.35),
+        sequenceNumber: 6,
+        description: 'Neuer RM durchstößt nach vorne',
+      ),
+      const PlayAction(
+        id: 'act7',
+        type: ActionType.shoot,
+        playerId: 'a2',
+        sequenceNumber: 7,
+        description: 'Wurf aufs Tor',
+      ),
+    ];
+
+    return HandballPlay(
+      id: 'play_leer_2',
+      name: 'Leer 2',
+      attackingPlayers: attackingPlayers,
+      defendingPlayers: defendingPlayers,
+      actions: actions,
+      description: 'Kreuztausch über rechts mit Durchstoß',
     );
   }
 
